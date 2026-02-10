@@ -1,18 +1,24 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Filter, X, ChevronDown, Grid3X3, List, Star, ShoppingCart, Cpu, Zap, HardDrive, Monitor, Fan, MemoryStick } from 'lucide-react';
-import { products, categories } from '../data/products';
+import { products } from '../data/products';
 import { ProductCard } from '../components/ProductCard';
-import { Product } from '../types';
+import { Product, Category } from '../types';
 import { useApp } from '../context/AppContext';
 import { cn } from '../utils/cn';
+
+// Helper to get category name by ID
+const getCategoryName = (categoryId: string, categories: Category[]) => {
+  const category = categories.find(c => c.id === categoryId);
+  return category?.name || 'Uncategorized';
+};
 
 export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const { addToCart } = useApp();
+  const { addToCart, categories } = useApp();
 
   const selectedCategory = searchParams.get('category') || 'All';
   const sortBy = searchParams.get('sort') || 'featured';
@@ -27,14 +33,14 @@ export function ProductsPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query) ||
+        getCategoryName(p.category_id, categories).toLowerCase().includes(query) ||
         p.description.toLowerCase().includes(query) ||
         p.specs.some(spec => spec.toLowerCase().includes(query))
       );
     }
 
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(p => p.category === selectedCategory);
+      filtered = filtered.filter(p => getCategoryName(p.category_id, categories) === selectedCategory);
     }
 
     if (priceRange !== 'all') {
@@ -211,24 +217,24 @@ export function ProductsPage() {
                 <div className="bg-[#111113] border border-[#27272a] rounded-xl p-5">
                   <h3 className="font-semibold text-white mb-4 font-mono text-xs uppercase tracking-wider">Categories</h3>
                   <div className="space-y-1">
-                    {categories.map(cat => {
-                      const Icon = getCategoryIcon(cat);
+                    {categories.map((cat: Category) => {
+                      const Icon = getCategoryIcon(cat.name);
                       return (
                         <button
-                          key={cat}
+                          key={cat.id}
                           onClick={() => {
-                            updateFilter('category', cat);
+                            updateFilter('category', cat.name);
                             setShowFilters(false);
                           }}
                           className={cn(
                             "w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg text-sm transition-all",
-                            selectedCategory === cat
+                            selectedCategory === cat.name
                               ? 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/30'
                               : 'text-[#a1a1aa] hover:bg-[#18181b] hover:text-white'
                           )}
                         >
                           <Icon className="w-4 h-4" />
-                          {cat}
+                          {cat.name}
                         </button>
                       );
                     })}
@@ -291,7 +297,7 @@ export function ProductsPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-1">{product.category}</p>
+                      <p className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-1">{getCategoryName(product.category_id, categories)}</p>
                       <h3 className="font-medium text-white mb-2 group-hover:text-[#3b82f6] transition-colors">{product.name}</h3>
                       <p className="text-sm text-[#71717a] line-clamp-2 mb-3">{product.description}</p>
                       
@@ -309,8 +315,8 @@ export function ProductsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-baseline gap-2">
                           <span className="text-xl font-bold text-white font-mono">${product.price.toLocaleString()}</span>
-                          {product.originalPrice && (
-                            <span className="text-sm text-[#71717a] line-through font-mono">${product.originalPrice.toLocaleString()}</span>
+                          {product.original_price && (
+                            <span className="text-sm text-[#71717a] line-through font-mono">${product.original_price.toLocaleString()}</span>
                           )}
                         </div>
                         <button
@@ -365,7 +371,7 @@ export function ProductsPage() {
             <div className="p-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider px-2 py-1 bg-[#18181b] rounded">
-                  {selectedProduct.category}
+                  {selectedProduct ? getCategoryName(selectedProduct.category_id, categories) : ''}
                 </span>
                 {selectedProduct.featured && (
                   <span className="text-[10px] font-mono text-[#3b82f6] uppercase tracking-wider px-2 py-1 bg-[#3b82f6]/10 border border-[#3b82f6]/30 rounded">
@@ -425,8 +431,8 @@ export function ProductsPage() {
               <div className="flex items-center justify-between pt-4 border-t border-[#27272a]">
                 <div>
                   <span className="text-3xl font-bold text-white font-mono">${selectedProduct.price.toLocaleString()}</span>
-                  {selectedProduct.originalPrice && (
-                    <span className="ml-2 text-lg text-[#71717a] line-through font-mono">${selectedProduct.originalPrice.toLocaleString()}</span>
+                  {selectedProduct.original_price && (
+                    <span className="ml-2 text-lg text-[#71717a] line-through font-mono">${selectedProduct.original_price.toLocaleString()}</span>
                   )}
                 </div>
                 <button

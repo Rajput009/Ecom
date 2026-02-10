@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { AdminTab, Product, Category, RepairRequest, RepairStatus, Order } from '../types';
+import { AdminTab, Product, Category, RepairRequest, RepairStatus, Order, Customer } from '../types';
 import { 
   LayoutDashboard, Package, ShoppingCart, Wrench, Tags, Settings, 
   Plus, Search, Edit2, Trash2, X, Check,
@@ -25,6 +25,27 @@ const orderStatusColors: Record<Order['status'], string> = {
   'shipped': 'bg-purple-500',
   'delivered': 'bg-green-500',
   'cancelled': 'bg-red-500',
+};
+
+// Helper to format date
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// Helper to get customer name by ID
+const getCustomerName = (customerId: string, customers: Customer[]) => {
+  const customer = customers.find(c => c.id === customerId);
+  return customer?.name || 'Unknown';
+};
+
+// Helper to get category name by ID
+const getCategoryName = (categoryId: string, categories: Category[]) => {
+  const category = categories.find(c => c.id === categoryId);
+  return category?.name || 'Uncategorized';
 };
 
 export function AdminPanel() {
@@ -121,7 +142,7 @@ export function AdminPanel() {
 
 // Dashboard Tab
 function DashboardTab({ stats }: { stats: any }) {
-  const { orders, repairRequests, products } = useApp();
+  const { orders, repairRequests, products, customers } = useApp();
 
   const recentOrders = orders.slice(0, 5);
   const recentRepairs = repairRequests.slice(0, 5);
@@ -168,8 +189,8 @@ function DashboardTab({ stats }: { stats: any }) {
               recentOrders.map(order => (
                 <div key={order.id} className="flex items-center justify-between py-2 border-b border-[#27272a] last:border-0">
                   <div>
-                    <p className="font-medium text-sm">{order.id}</p>
-                    <p className="text-xs text-[#71717a]">{order.customer}</p>
+                    <p className="font-medium text-sm">{order.order_number}</p>
+                    <p className="text-xs text-[#71717a]">{getCustomerName(order.customer_id, customers)}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-sm">${order.total}</p>
@@ -193,11 +214,11 @@ function DashboardTab({ stats }: { stats: any }) {
               recentRepairs.map(repair => (
                 <div key={repair.id} className="flex items-center justify-between py-2 border-b border-[#27272a] last:border-0">
                   <div>
-                    <p className="font-medium text-sm">{repair.id}</p>
-                    <p className="text-xs text-[#71717a]">{repair.deviceBrand} {repair.deviceModel}</p>
+                    <p className="font-medium text-sm">{repair.repair_id}</p>
+                    <p className="text-xs text-[#71717a]">{repair.device_brand} {repair.device_model}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-[#71717a]">{repair.customerName}</p>
+                    <p className="text-xs text-[#71717a]">{getCustomerName(repair.customer_id, customers)}</p>
                     <span className={cn("text-[10px] px-2 py-0.5 rounded-full text-white", repairStatusColors[repair.status])}>
                       {repair.status}
                     </span>
@@ -260,7 +281,7 @@ function ProductsTab() {
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
+    getCategoryName(p.category_id, categories).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleDelete = (id: string) => {
@@ -316,7 +337,7 @@ function ProductsTab() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-xs px-2 py-1 bg-[#18181b] rounded">{product.category}</span>
+                    <span className="text-xs px-2 py-1 bg-[#18181b] rounded">{getCategoryName(product.category_id, categories)}</span>
                   </td>
                   <td className="px-6 py-4 font-mono text-sm">${product.price}</td>
                   <td className="px-6 py-4">
@@ -365,7 +386,7 @@ function ProductsTab() {
             if (editingProduct) {
               updateProduct(editingProduct.id, product);
             } else {
-              addProduct(product as Omit<Product, 'id' | 'rating' | 'reviews'>);
+              addProduct(product as Omit<Product, 'id' | 'rating' | 'reviews' | 'created_at' | 'updated_at'>);
             }
             setShowAddModal(false);
             setEditingProduct(null);
@@ -380,9 +401,9 @@ function ProductsTab() {
 function ProductModal({ product, categories, onClose, onSave }: any) {
   const [formData, setFormData] = useState({
     name: product?.name || '',
-    category: product?.category || categories[0]?.name || '',
+    category_id: product?.category_id || categories[0]?.id || '',
     price: product?.price || 0,
-    originalPrice: product?.originalPrice || 0,
+    original_price: product?.original_price || 0,
     stock: product?.stock || 0,
     description: product?.description || '',
     image: product?.image || '',
@@ -421,12 +442,12 @@ function ProductModal({ product, categories, onClose, onSave }: any) {
           <div>
             <label className="block text-sm text-[#71717a] mb-1">Category</label>
             <select
-              value={formData.category}
-              onChange={e => setFormData({ ...formData, category: e.target.value })}
+              value={formData.category_id}
+              onChange={e => setFormData({ ...formData, category_id: e.target.value })}
               className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white focus:outline-none focus:border-[#3b82f6]"
             >
               {categories.map((cat: Category) => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
           </div>
@@ -442,15 +463,24 @@ function ProductModal({ product, categories, onClose, onSave }: any) {
               />
             </div>
             <div>
-              <label className="block text-sm text-[#71717a] mb-1">Stock</label>
+              <label className="block text-sm text-[#71717a] mb-1">Original Price (optional)</label>
               <input
                 type="number"
-                value={formData.stock}
-                onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })}
+                value={formData.original_price}
+                onChange={e => setFormData({ ...formData, original_price: Number(e.target.value) })}
                 className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white focus:outline-none focus:border-[#3b82f6]"
-                required
               />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm text-[#71717a] mb-1">Stock</label>
+            <input
+              type="number"
+              value={formData.stock}
+              onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })}
+              className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white focus:outline-none focus:border-[#3b82f6]"
+              required
+            />
           </div>
           <div>
             <label className="block text-sm text-[#71717a] mb-1">Image URL</label>
@@ -515,7 +545,7 @@ function ProductModal({ product, categories, onClose, onSave }: any) {
 
 // Orders Tab
 function OrdersTab() {
-  const { orders, updateOrderStatus } = useApp();
+  const { orders, updateOrderStatus, customers } = useApp();
 
   return (
     <div className="bg-[#111113] border border-[#27272a] rounded-xl overflow-hidden">
@@ -533,9 +563,9 @@ function OrdersTab() {
           <tbody className="divide-y divide-[#27272a]">
             {orders.map(order => (
               <tr key={order.id} className="hover:bg-[#18181b]">
-                <td className="px-6 py-4 text-sm font-medium">{order.id}</td>
-                <td className="px-6 py-4 text-sm">{order.customer}</td>
-                <td className="px-6 py-4 text-sm text-[#71717a]">{order.date}</td>
+                <td className="px-6 py-4 text-sm font-medium">{order.order_number}</td>
+                <td className="px-6 py-4 text-sm">{getCustomerName(order.customer_id, customers)}</td>
+                <td className="px-6 py-4 text-sm text-[#71717a]">{formatDate(order.created_at)}</td>
                 <td className="px-6 py-4 text-sm font-mono">${order.total}</td>
                 <td className="px-6 py-4">
                   <select
@@ -561,7 +591,7 @@ function OrdersTab() {
 
 // Repairs Tab
 function RepairsTab() {
-  const { repairRequests, updateRepairStatus, deleteRepairRequest, updateRepairRequest } = useApp();
+  const { repairRequests, updateRepairStatus, deleteRepairRequest, updateRepairRequest, customers } = useApp();
   const [filter, setFilter] = useState<RepairStatus | 'all'>('all');
   const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null);
 
@@ -607,17 +637,17 @@ function RepairsTab() {
             <tbody className="divide-y divide-[#27272a]">
               {filteredRepairs.map(repair => (
                 <tr key={repair.id} className="hover:bg-[#18181b]">
-                  <td className="px-6 py-4 text-sm font-mono">{repair.id}</td>
+                  <td className="px-6 py-4 text-sm font-mono">{repair.repair_id}</td>
                   <td className="px-6 py-4">
                     <div>
-                      <p className="text-sm">{repair.customerName}</p>
-                      <p className="text-xs text-[#71717a]">{repair.phone}</p>
+                      <p className="text-sm">{getCustomerName(repair.customer_id, customers)}</p>
+                      <p className="text-xs text-[#71717a]">{customers.find(c => c.id === repair.customer_id)?.phone || 'N/A'}</p>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {repair.deviceBrand} {repair.deviceModel}
+                    {repair.device_brand} {repair.device_model}
                   </td>
-                  <td className="px-6 py-4 text-sm text-[#71717a]">{repair.serviceType}</td>
+                  <td className="px-6 py-4 text-sm text-[#71717a]">{repair.service_type}</td>
                   <td className="px-6 py-4">
                     <select
                       value={repair.status}
@@ -668,6 +698,7 @@ function RepairsTab() {
       {selectedRepair && (
         <RepairDetailModal
           repair={selectedRepair}
+          customers={customers}
           onClose={() => setSelectedRepair(null)}
           onUpdate={(updates: Partial<RepairRequest>) => {
             updateRepairRequest(selectedRepair.id, updates);
@@ -680,17 +711,19 @@ function RepairsTab() {
 }
 
 // Repair Detail Modal
-function RepairDetailModal({ repair, onClose, onUpdate }: any) {
+function RepairDetailModal({ repair, customers, onClose, onUpdate }: any) {
   const [notes, setNotes] = useState(repair.notes || '');
-  const [estimatedCost, setEstimatedCost] = useState(repair.estimatedCost || '');
-  const [finalCost, setFinalCost] = useState(repair.finalCost || '');
+  const [estimated_cost, setEstimatedCost] = useState(repair.estimated_cost || '');
+  const [final_cost, setFinalCost] = useState(repair.final_cost || '');
   const [technician, setTechnician] = useState(repair.technician || '');
+
+  const customer = customers.find((c: Customer) => c.id === repair.customer_id);
 
   const handleSave = () => {
     onUpdate({
       notes,
-      estimatedCost: estimatedCost ? Number(estimatedCost) : undefined,
-      finalCost: finalCost ? Number(finalCost) : undefined,
+      estimated_cost: estimated_cost ? Number(estimated_cost) : undefined,
+      final_cost: final_cost ? Number(final_cost) : undefined,
       technician,
     });
   };
@@ -708,19 +741,19 @@ function RepairDetailModal({ repair, onClose, onUpdate }: any) {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-[#71717a]">Customer</p>
-              <p className="font-medium">{repair.customerName}</p>
+              <p className="font-medium">{customer?.name || 'Unknown'}</p>
             </div>
             <div>
               <p className="text-[#71717a]">Phone</p>
-              <p className="font-medium">{repair.phone}</p>
+              <p className="font-medium">{customer?.phone || 'N/A'}</p>
             </div>
             <div>
               <p className="text-[#71717a]">Device</p>
-              <p className="font-medium">{repair.deviceBrand} {repair.deviceModel}</p>
+              <p className="font-medium">{repair.device_brand} {repair.device_model}</p>
             </div>
             <div>
               <p className="text-[#71717a]">Service</p>
-              <p className="font-medium">{repair.serviceType}</p>
+              <p className="font-medium">{repair.service_type}</p>
             </div>
           </div>
           <div>
@@ -742,7 +775,7 @@ function RepairDetailModal({ repair, onClose, onUpdate }: any) {
               <label className="block text-sm text-[#71717a] mb-1">Estimated Cost</label>
               <input
                 type="number"
-                value={estimatedCost}
+                value={estimated_cost}
                 onChange={e => setEstimatedCost(e.target.value)}
                 className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white"
               />
@@ -751,7 +784,7 @@ function RepairDetailModal({ repair, onClose, onUpdate }: any) {
               <label className="block text-sm text-[#71717a] mb-1">Final Cost</label>
               <input
                 type="number"
-                value={finalCost}
+                value={final_cost}
                 onChange={e => setFinalCost(e.target.value)}
                 className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white"
               />
@@ -851,7 +884,7 @@ function CategoriesTab() {
                     <span className="font-medium">{category.name}</span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-sm text-[#71717a]">{category.productCount} products</td>
+                <td className="px-6 py-4 text-sm text-[#71717a]">{category.product_count} products</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     {editingId === category.id ? (
