@@ -1,11 +1,12 @@
 import { Star, Heart } from 'lucide-react';
-import { Product } from '../types';
+import { Product, Category } from '../types';
 import { useApp } from '../context/AppContext';
 import { useState, useCallback, memo, useMemo } from 'react';
 import { cn } from '../utils/cn';
 
 interface ProductCardProps {
   product: Product;
+  category?: Category;
   onViewDetails?: (product: Product) => void;
 }
 
@@ -55,15 +56,15 @@ const calculateDiscount = (originalPrice: number | undefined, price: number): nu
   return Math.round(((originalPrice - price) / originalPrice) * 100);
 };
 
-export const ProductCard = memo(function ProductCard({ product, onViewDetails }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product, category, onViewDetails }: ProductCardProps) {
   const { addToCart } = useApp();
   const [isLiked, setIsLiked] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   // Memoized calculations
   const discount = useMemo(() => 
-    calculateDiscount(product.originalPrice, product.price),
-    [product.originalPrice, product.price]
+    calculateDiscount(product.original_price, product.price),
+    [product.original_price, product.price]
   );
 
   const priceFormatted = useMemo(() => 
@@ -72,8 +73,8 @@ export const ProductCard = memo(function ProductCard({ product, onViewDetails }:
   );
 
   const originalPriceFormatted = useMemo(() => 
-    product.originalPrice?.toLocaleString(),
-    [product.originalPrice]
+    product.original_price?.toLocaleString(),
+    [product.original_price]
   );
 
   // Memoized callbacks
@@ -169,7 +170,7 @@ export const ProductCard = memo(function ProductCard({ product, onViewDetails }:
       <div className="p-4">
         {/* Category */}
         <p className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-1">
-          {product.category}
+          {category?.name || 'Product'}
         </p>
         
         {/* Name */}
@@ -191,7 +192,7 @@ export const ProductCard = memo(function ProductCard({ product, onViewDetails }:
             <span className="text-lg font-bold text-white font-mono">
               ${priceFormatted}
             </span>
-            {product.originalPrice && (
+            {product.original_price && (
               <span className="text-xs text-[#71717a] line-through font-mono">
                 ${originalPriceFormatted}
               </span>
