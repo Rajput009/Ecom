@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy } from 'react';
 import { AppProvider } from './context/AppContext';
+import { SupabaseAuthProvider, useSupabaseAuth } from './context/SupabaseAuthContext';
 import { Header } from './components/Header';
 import { HomePage } from './pages/HomePage';
 import { AdminLogin } from './pages/AdminLogin';
-import { adminAuth, startSessionTimer } from './services/adminAuth';
 import { TrackRepair } from './pages/TrackRepair';
 
 // Lazy load pages
@@ -29,22 +29,14 @@ function PageLoader() {
 // Protected Route component for admin
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const isAuthenticated = adminAuth.isLoggedIn();
+  const { isAdmin, isLoading } = useSupabaseAuth();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Start session timer
-      const cleanup = startSessionTimer(() => {
-        alert('Your admin session has expired. Please log in again.');
-        window.location.href = '/admin/login';
-      });
+  if (isLoading) {
+    return <PageLoader />;
+  }
 
-      return cleanup;
-    }
-  }, [isAuthenticated]);
-
-  if (!isAuthenticated) {
-    // Redirect to login if not authenticated
+  if (!isAdmin) {
+    // Redirect to login if not authenticated as admin
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 
@@ -53,9 +45,16 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
 
 // Public Route component - redirects to admin dashboard if already logged in
 function PublicAdminRoute({ children }: { children: React.ReactNode }) {
-  if (adminAuth.isLoggedIn()) {
-    return <Navigate to="/admin/dashboard" replace />;
+  const { isAdmin, isLoading } = useSupabaseAuth();
+
+  if (isLoading) {
+    return <PageLoader />;
   }
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -93,14 +92,13 @@ function AdminRoutes() {
           } 
         />
         <Route 
-          path="/dashboard" 
+          path="/" 
           element={
             <ProtectedAdminRoute>
               <AdminPanel />
             </ProtectedAdminRoute>
           } 
         />
-        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </Suspense>
@@ -110,15 +108,17 @@ function AdminRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
-        <Routes>
-          {/* Customer Routes */}
-          <Route path="/*" element={<CustomerLayout />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin/*" element={<AdminRoutes />} />
-        </Routes>
-      </AppProvider>
+      <SupabaseAuthProvider>
+        <AppProvider>
+          <Routes>
+            {/* Customer Routes */}
+            <Route path="/*" element={<CustomerLayout />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/*" element={<AdminRoutes />} />
+          </Routes>
+        </AppProvider>
+      </SupabaseAuthProvider>
     </BrowserRouter>
   );
 }

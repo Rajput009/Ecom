@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useSupabaseAuth } from '../context/SupabaseAuthContext';
 import { AdminTab, Product, Category, RepairRequest, RepairStatus, Order, Customer } from '../types';
 import { 
   LayoutDashboard, Package, ShoppingCart, Wrench, Tags, Settings, 
@@ -50,7 +52,14 @@ const getCategoryName = (categoryId: string, categories: Category[]) => {
 
 export function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
-  const { setIsAdmin, orders, products, repairRequests } = useApp();
+  const navigate = useNavigate();
+  const { signOut } = useSupabaseAuth();
+  const { orders, products, repairRequests } = useApp();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/admin/login');
+  };
 
   // Calculate stats
   const stats = useMemo(() => ({
@@ -78,7 +87,7 @@ export function AdminPanel() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setIsAdmin(false)}
+              onClick={handleLogout}
               className="flex items-center gap-2 text-[#a1a1aa] hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -94,7 +103,7 @@ export function AdminPanel() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsAdmin(false)}
+              onClick={handleLogout}
               className="flex items-center gap-2 px-3 py-2 text-sm text-[#a1a1aa] hover:text-white transition-colors"
             >
               <LogOut className="w-4 h-4" />
