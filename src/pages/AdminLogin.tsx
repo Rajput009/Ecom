@@ -1,70 +1,45 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Cpu } from 'lucide-react';
-import { adminAuth, startSessionTimer } from '../services/adminAuth';
+import { Lock, Eye, EyeOff, AlertCircle, Cpu, Mail } from 'lucide-react';
+import { useSupabaseAuth } from '../context/SupabaseAuthContext';
 import { cn } from '../utils/cn';
 
 export function AdminLogin() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [attempts, setAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
+  const { signIn, isAdmin, user } = useSupabaseAuth();
 
-  // Check if already logged in
+  // Redirect if already logged in as admin
   useEffect(() => {
-    if (adminAuth.isLoggedIn()) {
-      navigate('/admin/dashboard');
+    if (user && isAdmin) {
+      navigate('/admin');
+    } else if (user && !isAdmin) {
+      setError('You do not have admin privileges.');
     }
-  }, [navigate]);
-
-  // Lock out after 5 failed attempts
-  useEffect(() => {
-    if (attempts >= 5) {
-      setIsLocked(true);
-      setError('Too many failed attempts. Please wait 5 minutes.');
-      
-      const timer = setTimeout(() => {
-        setIsLocked(false);
-        setAttempts(0);
-        setError('');
-      }, 5 * 60 * 1000); // 5 minutes
-
-      return () => clearTimeout(timer);
-    }
-  }, [attempts]);
+  }, [user, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isLocked) return;
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
     
     setIsLoading(true);
     setError('');
 
     try {
-      const isValid = await adminAuth.verifyPassword(password);
+      const { error: signInError } = await signIn(email, password);
       
-      if (isValid) {
-        adminAuth.createSession();
-        
-        // Start session timer
-        const cleanup = startSessionTimer(() => {
-          alert('Your admin session has expired. Please log in again.');
-          navigate('/admin/login');
-        });
-
-        // Store cleanup function (optional - for manual cleanup)
-        (window as any).adminSessionCleanup = cleanup;
-        
-        navigate('/admin/dashboard');
-      } else {
-        setAttempts(prev => prev + 1);
-        setError(`Invalid password. ${5 - attempts - 1} attempts remaining.`);
-        setPassword('');
+      if (signInError) {
+        setError('Invalid email or password.');
       }
+      // Success will trigger the useEffect above
     } catch (err) {
       setError('An error occurred. Please try again.');
     } finally {
@@ -101,6 +76,22 @@ export function AdminLogin() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
+            <div>
+              <label className="block text-sm text-[#71717a] mb-2">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#71717a]" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@zulfiqarpc.com"
+                  className="w-full pl-10 pr-4 py-3 bg-[#18181b] border border-[#27272a] rounded-lg text-white placeholder:text-[#52525b] focus:outline-none focus:border-[#3b82f6] transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
             <div>
               <label className="block text-sm text-[#71717a] mb-2">Password</label>
               <div className="relative">
@@ -109,35 +100,25 @@ export function AdminLogin() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
-                  disabled={isLocked || isLoading}
-                  className={cn(
-                    "w-full pl-10 pr-12 py-3 bg-[#18181b] border rounded-lg text-white placeholder:text-[#52525b] focus:outline-none transition-colors",
-                    isLocked 
-                      ? "border-[#ef4444]/30 cursor-not-allowed" 
-                      : "border-[#27272a] focus:border-[#3b82f6]"
-                  )}
+                  placeholder="Enter your password"
+                  className="w-full pl-10 pr-12 py-3 bg-[#18181b] border border-[#27272a] rounded-lg text-white placeholder:text-[#52525b] focus:outline-none focus:border-[#3b82f6] transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLocked}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-white transition-colors disabled:cursor-not-allowed"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-xs text-[#52525b] mt-2">
-                Contact your administrator for access
-              </p>
             </div>
 
             <button
               type="submit"
-              disabled={isLocked || isLoading || !password}
+              disabled={isLoading || !email || !password}
               className={cn(
                 "w-full py-3 px-4 bg-[#3b82f6] text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2",
-                (isLocked || isLoading || !password)
+                (isLoading || !email || !password)
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:bg-[#2563eb] hover:shadow-lg hover:shadow-[#3b82f6]/25"
               )}
@@ -145,20 +126,20 @@ export function AdminLogin() {
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Verifying...
+                  Signing in...
                 </>
               ) : (
-                'Login'
+                'Sign In'
               )}
             </button>
           </form>
 
-          {/* Security Notice */}
+          {/* Setup Instructions */}
           <div className="mt-6 pt-6 border-t border-[#27272a]">
             <p className="text-xs text-[#52525b] text-center">
-              This is a secure area. Unauthorized access is prohibited.
+              First time? Run the SQL setup in Supabase Dashboard.
               <br />
-              All login attempts are logged.
+              See <code className="text-[#3b82f6]">supabase/auth-setup.sql</code>
             </p>
           </div>
         </div>
