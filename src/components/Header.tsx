@@ -4,6 +4,13 @@ import { ShoppingCart, Cpu, Menu, X, Search, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { products } from '../data/products';
 import { cn } from '../utils/cn';
+import { Category } from '../types';
+
+// Helper to get category name by ID
+const getCategoryName = (categoryId: string, categories: Category[]) => {
+  const category = categories.find(c => c.id === categoryId);
+  return category?.name || 'Product';
+};
 
 // Static data outside component to prevent recreation
 const navLinks = [
@@ -18,10 +25,12 @@ const quickSearchTerms = ['RTX 4090', 'Ryzen 9', 'DDR5', 'Gaming Laptop', 'NVMe 
 // Memoized search result item to prevent re-renders
 const SearchResultItem = memo(function SearchResultItem({
   product,
+  categoryName,
   onClick,
   onAddToCart,
 }: {
   product: typeof products[0];
+  categoryName: string;
   onClick: () => void;
   onAddToCart: (e: React.MouseEvent) => void;
 }) {
@@ -41,7 +50,7 @@ const SearchResultItem = memo(function SearchResultItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider px-1.5 py-0.5 bg-[#18181b] rounded">
-            {product.category}
+            {categoryName}
           </span>
           {product.featured && (
             <span className="text-[10px] font-mono text-[#3b82f6] uppercase tracking-wider px-1.5 py-0.5 bg-[#3b82f6]/10 border border-[#3b82f6]/30 rounded">
@@ -56,9 +65,9 @@ const SearchResultItem = memo(function SearchResultItem({
           <span className="text-sm font-mono text-[#3b82f6] font-medium">
             ${product.price.toLocaleString()}
           </span>
-          {product.originalPrice && (
+          {product.original_price && (
             <span className="text-xs text-[#52525b] line-through">
-              ${product.originalPrice.toLocaleString()}
+              ${product.original_price.toLocaleString()}
             </span>
           )}
         </div>
@@ -78,7 +87,7 @@ export const Header = memo(function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { cartCount, addToCart } = useApp();
+  const { cartCount, addToCart, categories } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -119,7 +128,7 @@ export const Header = memo(function Header() {
       const nameMatch = product.name.toLowerCase().includes(query);
       if (nameMatch) return true;
       
-      const categoryMatch = product.category.toLowerCase().includes(query);
+      const categoryMatch = getCategoryName(product.category_id, categories).toLowerCase().includes(query);
       if (categoryMatch) return true;
       
       const descMatch = product.description.toLowerCase().includes(query);
@@ -127,7 +136,7 @@ export const Header = memo(function Header() {
       
       return product.specs.some(spec => spec.toLowerCase().includes(query));
     }).slice(0, 8);
-  }, [searchQuery]);
+  }, [searchQuery, categories]);
 
   const handleProductClick = useCallback(() => {
     setIsSearchOpen(false);
@@ -347,6 +356,7 @@ export const Header = memo(function Header() {
                       <SearchResultItem
                         key={product.id}
                         product={product}
+                        categoryName={getCategoryName(product.category_id, categories)}
                         onClick={handleProductClick}
                         onAddToCart={handleAddToCart(product)}
                       />
