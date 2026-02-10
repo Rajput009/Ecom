@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { CartItem, Product, PCBuild, Order, RepairRequest, Category, RepairStatus } from '../types';
+import { CartItem, Product, PCBuild, Order, RepairRequest, Category, RepairStatus, Customer } from '../types';
 import { products as initialProducts } from '../data/products';
 
 interface AppContextType {
@@ -23,22 +23,25 @@ interface AppContextType {
   
   // Products (Admin)
   products: Product[];
-  addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews'>) => Product;
+  addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews' | 'created_at' | 'updated_at'>) => Product;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   
   // Categories (Admin)
   categories: Category[];
-  addCategory: (name: string) => void;
-  updateCategory: (categoryId: string, name: string) => void;
+  addCategory: (name: string, icon?: string) => void;
+  updateCategory: (categoryId: string, name: string, icon?: string) => void;
   deleteCategory: (categoryId: string) => void;
   
   // Repair Requests (Admin)
   repairRequests: RepairRequest[];
-  addRepairRequest: (request: Omit<RepairRequest, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'notifiedCustomer'>) => RepairRequest;
+  addRepairRequest: (request: Omit<RepairRequest, 'id' | 'repair_id' | 'created_at' | 'updated_at' | 'status' | 'notified_customer'>) => RepairRequest;
   updateRepairStatus: (requestId: string, status: RepairStatus) => void;
   updateRepairRequest: (requestId: string, updates: Partial<RepairRequest>) => void;
   deleteRepairRequest: (requestId: string) => void;
+  
+  // Customers (Admin)
+  customers: Customer[];
   
   // Admin
   isAdmin: boolean;
@@ -47,27 +50,28 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Storage keys
+// Storage keys (v2 for new schema)
 const STORAGE_KEYS = {
-  PRODUCTS: 'zulfiqar_products',
-  ORDERS: 'zulfiqar_orders',
-  REPAIRS: 'zulfiqar_repairs',
-  CATEGORIES: 'zulfiqar_categories',
+  PRODUCTS: 'zulfiqar_products_v2',
+  ORDERS: 'zulfiqar_orders_v2',
+  REPAIRS: 'zulfiqar_repairs_v2',
+  CATEGORIES: 'zulfiqar_categories_v2',
+  CUSTOMERS: 'zulfiqar_customers_v2',
 };
 
-// Initial categories
+// Initial categories with icons
 const initialCategories: Category[] = [
-  { id: 'cat-1', name: 'Graphics Cards', productCount: 0 },
-  { id: 'cat-2', name: 'Processors', productCount: 0 },
-  { id: 'cat-3', name: 'Memory', productCount: 0 },
-  { id: 'cat-4', name: 'Storage', productCount: 0 },
-  { id: 'cat-5', name: 'Motherboards', productCount: 0 },
-  { id: 'cat-6', name: 'Power Supplies', productCount: 0 },
-  { id: 'cat-7', name: 'Cases', productCount: 0 },
-  { id: 'cat-8', name: 'Cooling', productCount: 0 },
-  { id: 'cat-9', name: 'Monitors', productCount: 0 },
-  { id: 'cat-10', name: 'Peripherals', productCount: 0 },
-  { id: 'cat-11', name: 'Laptops', productCount: 0 },
+  { id: 'cat-1', name: 'Graphics Cards', icon: 'gpu', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-2', name: 'Processors', icon: 'cpu', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-3', name: 'Memory', icon: 'memory', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-4', name: 'Storage', icon: 'hard-drive', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-5', name: 'Motherboards', icon: 'motherboard', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-6', name: 'Power Supplies', icon: 'power', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-7', name: 'Cases', icon: 'box', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-8', name: 'Cooling', icon: 'fan', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-9', name: 'Monitors', icon: 'monitor', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-10', name: 'Peripherals', icon: 'mouse', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'cat-11', name: 'Laptops', icon: 'laptop', product_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 // Generate unique ID
@@ -86,48 +90,57 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
     if (saved) return JSON.parse(saved);
-    // Calculate initial product counts
+    // Calculate initial product counts based on category_id
     return initialCategories.map(cat => ({
       ...cat,
-      productCount: initialProducts.filter(p => p.category === cat.name).length
+      product_count: initialProducts.filter(p => p.category_id === cat.id).length
     }));
+  });
+  
+  const [customers] = useState<Customer[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+    return saved ? JSON.parse(saved) : [];
   });
   
   const [orders, setOrders] = useState<Order[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
     return saved ? JSON.parse(saved) : [
       {
-        id: 'ORD-001',
-        customer: 'Ahmed Khan',
-        email: 'ahmed@email.com',
-        phone: '+92 300 1234567',
-        address: '123 Main Street, Lahore',
-        items: [],
+        id: 'ord-001',
+        order_number: 'ORD-20240210-0001',
+        customer_id: 'cust-001',
         total: 2499,
+        shipping_cost: 0,
+        tax: 199.92,
         status: 'processing',
-        date: '2024-01-15'
+        payment_status: 'completed',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
       {
-        id: 'ORD-002',
-        customer: 'Sara Ali',
-        email: 'sara@email.com',
-        phone: '+92 321 7654321',
-        address: '456 Tech Plaza, Karachi',
-        items: [],
+        id: 'ord-002',
+        order_number: 'ORD-20240209-0001',
+        customer_id: 'cust-002',
         total: 1599,
+        shipping_cost: 25,
+        tax: 127.92,
         status: 'shipped',
-        date: '2024-01-14'
+        payment_status: 'completed',
+        tracking_number: 'TRK123456789',
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+        updated_at: new Date(Date.now() - 86400000).toISOString(),
       },
       {
-        id: 'ORD-003',
-        customer: 'Usman Malik',
-        email: 'usman@email.com',
-        phone: '+92 333 9876543',
-        address: '789 IT Tower, Islamabad',
-        items: [],
+        id: 'ord-003',
+        order_number: 'ORD-20240208-0001',
+        customer_id: 'cust-003',
         total: 899,
+        shipping_cost: 25,
+        tax: 71.92,
         status: 'pending',
-        date: '2024-01-16'
+        payment_status: 'pending',
+        created_at: new Date(Date.now() - 172800000).toISOString(),
+        updated_at: new Date(Date.now() - 172800000).toISOString(),
       }
     ];
   });
@@ -155,6 +168,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.REPAIRS, JSON.stringify(repairRequests));
   }, [repairRequests]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
+  }, [customers]);
 
   // Cart functions
   const addToCart = (product: Product) => {
@@ -204,26 +221,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateOrderStatus = (orderId: string, status: Order['status']) => {
     setOrders(prev =>
       prev.map(order =>
-        order.id === orderId ? { ...order, status } : order
+        order.id === orderId 
+          ? { 
+              ...order, 
+              status, 
+              updated_at: new Date().toISOString(),
+              completed_at: status === 'delivered' ? new Date().toISOString() : order.completed_at
+            } 
+          : order
       )
     );
   };
 
   // Product Admin functions
-  const addProduct = (product: Omit<Product, 'id' | 'rating' | 'reviews'>) => {
+  const addProduct = (product: Omit<Product, 'id' | 'rating' | 'reviews' | 'created_at' | 'updated_at'>) => {
+    const now = new Date().toISOString();
     const newProduct: Product = {
       ...product,
       id: `prod-${generateId()}`,
       rating: 0,
       reviews: 0,
+      created_at: now,
+      updated_at: now,
     };
     setProducts(prev => [newProduct, ...prev]);
     
     // Update category count
     setCategories(prev =>
       prev.map(cat =>
-        cat.name === product.category
-          ? { ...cat, productCount: cat.productCount + 1 }
+        cat.id === product.category_id
+          ? { ...cat, product_count: cat.product_count + 1 }
           : cat
       )
     );
@@ -232,15 +259,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = (productId: string, updates: Partial<Product>) => {
+    const oldProduct = products.find(p => p.id === productId);
+    
     setProducts(prev =>
       prev.map(product =>
-        product.id === productId ? { ...product, ...updates } : product
+        product.id === productId ? { ...product, ...updates, updated_at: new Date().toISOString() } : product
       )
     );
     
     // Update category counts if category changed
-    if (updates.category) {
-      updateCategoryCounts();
+    if (updates.category_id && oldProduct && updates.category_id !== oldProduct.category_id) {
+      setCategories(prev =>
+        prev.map(cat => {
+          if (cat.id === oldProduct.category_id) {
+            return { ...cat, product_count: Math.max(0, cat.product_count - 1) };
+          }
+          if (cat.id === updates.category_id) {
+            return { ...cat, product_count: cat.product_count + 1 };
+          }
+          return cat;
+        })
+      );
     }
   };
 
@@ -252,8 +291,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (product) {
       setCategories(prev =>
         prev.map(cat =>
-          cat.name === product.category
-            ? { ...cat, productCount: Math.max(0, cat.productCount - 1) }
+          cat.id === product.category_id
+            ? { ...cat, product_count: Math.max(0, cat.product_count - 1) }
             : cat
         )
       );
@@ -261,72 +300,85 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Category Admin functions
-  const addCategory = (name: string) => {
+  const addCategory = (name: string, icon?: string) => {
+    const now = new Date().toISOString();
     const newCategory: Category = {
       id: `cat-${generateId()}`,
       name,
-      productCount: 0,
+      icon,
+      product_count: 0,
+      created_at: now,
+      updated_at: now,
     };
     setCategories(prev => [...prev, newCategory]);
   };
 
-  const updateCategory = (categoryId: string, name: string) => {
-    const oldCategory = categories.find(c => c.id === categoryId);
-    if (!oldCategory) return;
-    
+  const updateCategory = (categoryId: string, name: string, icon?: string) => {
     setCategories(prev =>
       prev.map(cat =>
-        cat.id === categoryId ? { ...cat, name } : cat
+        cat.id === categoryId ? { ...cat, name, icon, updated_at: new Date().toISOString() } : cat
       )
     );
-    
-    // Update products with old category name
-    setProducts(prev =>
-      prev.map(product =>
-        product.category === oldCategory.name
-          ? { ...product, category: name }
-          : product
-      )
-    );
+    // Note: With FK constraints, we don't need to update products - the relationship is by ID
   };
 
   const deleteCategory = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    if (category && category.productCount > 0) {
-      // Move products to "Uncategorized" or prevent deletion
+    // Check if products exist in this category
+    const productsInCategory = products.filter(p => p.category_id === categoryId);
+    
+    if (productsInCategory.length > 0) {
+      // Move products to "Uncategorized" category
       const uncategorized = categories.find(c => c.name === 'Uncategorized');
-      if (!uncategorized) {
-        addCategory('Uncategorized');
+      let uncategorizedId = uncategorized?.id;
+      
+      if (!uncategorizedId) {
+        // Create Uncategorized category
+        const now = new Date().toISOString();
+        const newUncategorized: Category = {
+          id: `cat-${generateId()}`,
+          name: 'Uncategorized',
+          icon: 'help-circle',
+          product_count: productsInCategory.length,
+          created_at: now,
+          updated_at: now,
+        };
+        uncategorizedId = newUncategorized.id;
+        setCategories(prev => [...prev, newUncategorized]);
+      } else {
+        // Update count
+        setCategories(prev =>
+          prev.map(cat =>
+            cat.id === uncategorizedId
+              ? { ...cat, product_count: cat.product_count + productsInCategory.length }
+              : cat
+          )
+        );
       }
+      
+      // Update all products in this category
       setProducts(prev =>
         prev.map(product =>
-          product.category === category.name
-            ? { ...product, category: 'Uncategorized' }
+          product.category_id === categoryId
+            ? { ...product, category_id: uncategorizedId!, updated_at: new Date().toISOString() }
             : product
         )
       );
     }
+    
     setCategories(prev => prev.filter(c => c.id !== categoryId));
   };
 
-  const updateCategoryCounts = () => {
-    setCategories(prev =>
-      prev.map(cat => ({
-        ...cat,
-        productCount: products.filter(p => p.category === cat.name).length
-      }))
-    );
-  };
-
   // Repair Request functions
-  const addRepairRequest = (request: Omit<RepairRequest, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'notifiedCustomer'>) => {
+  const addRepairRequest = (request: Omit<RepairRequest, 'id' | 'repair_id' | 'created_at' | 'updated_at' | 'status' | 'notified_customer'>) => {
+    const now = new Date().toISOString();
     const newRequest: RepairRequest = {
       ...request,
-      id: `REP-${generateId().toUpperCase()}`,
+      id: crypto.randomUUID(),
+      repair_id: `REP-${generateId().toUpperCase()}`,
       status: 'received',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      notifiedCustomer: false,
+      notified_customer: false,
+      created_at: now,
+      updated_at: now,
     };
     setRepairRequests(prev => [newRequest, ...prev]);
     return newRequest;
@@ -339,10 +391,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ? {
               ...request,
               status,
-              updatedAt: new Date().toISOString(),
-              completedAt: status === 'returned' || status === 'cancelled' 
+              updated_at: new Date().toISOString(),
+              completed_at: status === 'completed' || status === 'returned' || status === 'cancelled'
                 ? new Date().toISOString() 
-                : request.completedAt,
+                : request.completed_at,
             }
           : request
       )
@@ -353,7 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRepairRequests(prev =>
       prev.map(request =>
         request.id === requestId
-          ? { ...request, ...updates, updatedAt: new Date().toISOString() }
+          ? { ...request, ...updates, updated_at: new Date().toISOString() }
           : request
       )
     );
@@ -391,6 +443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateRepairStatus,
         updateRepairRequest,
         deleteRepairRequest,
+        customers,
         isAdmin,
         setIsAdmin
       }}

@@ -22,16 +22,18 @@ export function CartPage() {
 
   const handleCheckout = (e: React.FormEvent) => {
     e.preventDefault();
+    const now = new Date().toISOString();
     const order = {
-      id: `ORD-${Date.now().toString(36).toUpperCase()}`,
-      customer: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      address: `${formData.address}, ${formData.city} ${formData.zip}`,
-      items: cart,
+      id: `ord-${Date.now().toString(36)}`,
+      order_number: `ORD-${Date.now().toString(36).toUpperCase()}`,
+      customer_id: `cust-${formData.phone.replace(/\D/g, '')}`, // Temporary customer ID based on phone
       total,
+      shipping_cost: shipping,
+      tax,
       status: 'pending' as const,
-      date: new Date().toISOString().split('T')[0]
+      payment_status: 'pending' as const,
+      created_at: now,
+      updated_at: now,
     };
     addOrder(order);
     clearCart();
@@ -113,7 +115,7 @@ export function CartPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-4">
                     <div>
-                      <p className="text-xs font-medium text-blue-600 mb-1">{product.category}</p>
+                      <p className="text-xs font-medium text-blue-600 mb-1">Product</p>
                       <h3 className="font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
                     </div>
                     <button

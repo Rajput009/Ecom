@@ -1,6 +1,6 @@
 import useSWR from 'swr';
-import { products, pcComponents, categories } from '../data/products';
-import type { Product, PCComponent } from '../types';
+import { products, pcComponents } from '../data/products';
+import type { Product, PCComponent, Category } from '../types';
 
 // Fetcher functions
 const fetchProducts = (): Promise<Product[]> => 
@@ -9,8 +9,9 @@ const fetchProducts = (): Promise<Product[]> =>
 const fetchPCComponents = (): Promise<PCComponent[]> => 
   Promise.resolve(pcComponents);
 
-const fetchCategories = (): Promise<string[]> => 
-  Promise.resolve(categories);
+// Note: Categories are now fetched from context/database, not static data
+const fetchCategories = (): Promise<Category[]> => 
+  Promise.resolve([]);
 
 // Custom hooks using SWR for automatic caching and deduplication
 
@@ -55,6 +56,7 @@ export function useProduct(id: string) {
 
 /**
  * Hook to search products
+ * Note: Category search requires category name lookup from context
  */
 export function useProductSearch(query: string) {
   const { products, isLoading } = useProducts();
@@ -65,7 +67,6 @@ export function useProductSearch(query: string) {
         const searchTerm = query.toLowerCase();
         return (
           product.name.toLowerCase().includes(searchTerm) ||
-          product.category.toLowerCase().includes(searchTerm) ||
           product.description.toLowerCase().includes(searchTerm) ||
           product.specs.some(spec => spec.toLowerCase().includes(searchTerm))
         );
@@ -120,14 +121,14 @@ export function useCategories() {
 }
 
 /**
- * Hook to filter products by category
+ * Hook to filter products by category ID
  */
-export function useProductsByCategory(category: string) {
+export function useProductsByCategory(categoryId: string) {
   const { products, isLoading } = useProducts();
   
-  const filteredProducts = category === 'All' 
+  const filteredProducts = categoryId === 'All' || !categoryId
     ? products 
-    : products.filter(p => p.category === category);
+    : products.filter(p => p.category_id === categoryId);
 
   return {
     products: filteredProducts,
