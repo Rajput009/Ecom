@@ -1,7 +1,8 @@
 // Admin authentication service
 // Uses simple password hashing for security
 
-const ADMIN_PASSWORD_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'; // admin123
+// Get password hash from environment variable or use default
+const ADMIN_PASSWORD_HASH = (import.meta as any).env?.VITE_ADMIN_PASSWORD_HASH || '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'; // admin123
 const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 class AdminAuthService {

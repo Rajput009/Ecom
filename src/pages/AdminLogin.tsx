@@ -128,7 +128,7 @@ export function AdminLogin() {
                 </button>
               </div>
               <p className="text-xs text-[#52525b] mt-2">
-                Default password: admin123
+                Contact your administrator for access
               </p>
             </div>
 
