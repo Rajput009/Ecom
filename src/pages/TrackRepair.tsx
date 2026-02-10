@@ -218,11 +218,11 @@ export function TrackRepair() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-[#18181b] rounded-lg p-4">
                 <p className="text-xs text-[#71717a] mb-1">Device</p>
-                <p className="font-medium">{repair.deviceBrand} {repair.deviceModel}</p>
+                <p className="font-medium">{repair.device_brand} {repair.device_model}</p>
               </div>
               <div className="bg-[#18181b] rounded-lg p-4">
                 <p className="text-xs text-[#71717a] mb-1">Service Type</p>
-                <p className="font-medium">{repair.serviceType}</p>
+                <p className="font-medium">{repair.service_type}</p>
               </div>
             </div>
 
@@ -233,7 +233,7 @@ export function TrackRepair() {
             </div>
 
             {/* Additional Info */}
-            {(repair.technician || repair.estimatedCost || repair.notes) && (
+            {(repair.technician || repair.estimated_cost || repair.notes) && (
               <div className="space-y-3 mb-6 pt-6 border-t border-[#27272a]">
                 {repair.technician && (
                   <div className="flex justify-between">
@@ -241,16 +241,16 @@ export function TrackRepair() {
                     <span>{repair.technician}</span>
                   </div>
                 )}
-                {repair.estimatedCost && (
+                {repair.estimated_cost && (
                   <div className="flex justify-between">
                     <span className="text-[#71717a]">Estimated Cost</span>
-                    <span className="font-mono">PKR {repair.estimatedCost}</span>
+                    <span className="font-mono">PKR {repair.estimated_cost}</span>
                   </div>
                 )}
-                {repair.finalCost && (
+                {repair.final_cost && (
                   <div className="flex justify-between">
                     <span className="text-[#71717a]">Final Cost</span>
-                    <span className="font-mono text-[#22c55e]">PKR {repair.finalCost}</span>
+                    <span className="font-mono text-[#22c55e]">PKR {repair.final_cost}</span>
                   </div>
                 )}
                 {repair.notes && (
@@ -264,10 +264,10 @@ export function TrackRepair() {
 
             {/* Timestamps */}
             <div className="text-xs text-[#52525b] space-y-1 pt-4 border-t border-[#27272a]">
-              <p>Submitted: {new Date(repair.createdAt).toLocaleString()}</p>
-              <p>Last Updated: {new Date(repair.updatedAt).toLocaleString()}</p>
-              {repair.completedAt && (
-                <p className="text-[#22c55e]">Completed: {new Date(repair.completedAt).toLocaleString()}</p>
+              <p>Submitted: {new Date(repair.created_at).toLocaleString()}</p>
+              <p>Last Updated: {new Date(repair.updated_at).toLocaleString()}</p>
+              {repair.completed_at && (
+                <p className="text-[#22c55e]">Completed: {new Date(repair.completed_at).toLocaleString()}</p>
               )}
             </div>
 
