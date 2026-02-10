@@ -1,4 +1,4 @@
-import { RepairRequest, RepairStatus } from '../types';
+import { RepairRequestWithCustomer, RepairStatus } from '../types';
 
 // WhatsApp Business API Configuration
 const WHATSAPP_CONFIG = {
@@ -100,9 +100,9 @@ class WhatsAppService {
   }
 
   // Send repair confirmation to customer
-  async sendRepairConfirmation(repair: RepairRequest): Promise<boolean> {
-    const phone = this.formatPhoneNumber(repair.phone);
-    
+  async sendRepairConfirmation(repair: RepairRequestWithCustomer): Promise<boolean> {
+    const phone = this.formatPhoneNumber(repair.customer_phone);
+
     const message: WhatsAppMessage = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -115,12 +115,12 @@ class WhatsAppService {
           {
             type: 'body',
             parameters: [
-              { type: 'text', text: repair.customerName },
-              { type: 'text', text: repair.id },
-              { type: 'text', text: `${repair.deviceBrand} ${repair.deviceModel}` },
-              { type: 'text', text: repair.serviceType },
-              { type: 'text', text: this.getEstimatedTime(repair.deviceType) },
-              { type: 'text', text: `https://zulfiqarpc.com/track?repair=${repair.id}` },
+              { type: 'text', text: repair.customer_name },
+              { type: 'text', text: repair.repair_id },
+              { type: 'text', text: `${repair.device_brand} ${repair.device_model}` },
+              { type: 'text', text: repair.service_type },
+              { type: 'text', text: this.getEstimatedTime(repair.device_type) },
+              { type: 'text', text: `https://zulfiqarpc.com/track?repair=${repair.repair_id}` },
             ],
           },
         ],
@@ -131,9 +131,9 @@ class WhatsAppService {
   }
 
   // Send status update
-  async sendStatusUpdate(repair: RepairRequest): Promise<boolean> {
-    const phone = this.formatPhoneNumber(repair.phone);
-    
+  async sendStatusUpdate(repair: RepairRequestWithCustomer): Promise<boolean> {
+    const phone = this.formatPhoneNumber(repair.customer_phone);
+
     const message: WhatsAppMessage = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -146,7 +146,7 @@ class WhatsAppService {
           {
             type: 'body',
             parameters: [
-              { type: 'text', text: repair.id },
+              { type: 'text', text: repair.repair_id },
               { type: 'text', text: this.formatStatus(repair.status) },
               { type: 'text', text: repair.technician || 'Not assigned' },
               { type: 'text', text: repair.notes || 'No additional notes' },
@@ -160,9 +160,9 @@ class WhatsAppService {
   }
 
   // Send repair complete notification
-  async sendRepairComplete(repair: RepairRequest): Promise<boolean> {
-    const phone = this.formatPhoneNumber(repair.phone);
-    
+  async sendRepairComplete(repair: RepairRequestWithCustomer): Promise<boolean> {
+    const phone = this.formatPhoneNumber(repair.customer_phone);
+
     const message: WhatsAppMessage = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -175,10 +175,10 @@ class WhatsAppService {
           {
             type: 'body',
             parameters: [
-              { type: 'text', text: repair.customerName },
-              { type: 'text', text: repair.id },
-              { type: 'text', text: `${repair.deviceBrand} ${repair.deviceModel}` },
-              { type: 'text', text: `PKR ${repair.finalCost || repair.estimatedCost || 0}` },
+              { type: 'text', text: repair.customer_name },
+              { type: 'text', text: repair.repair_id },
+              { type: 'text', text: `${repair.device_brand} ${repair.device_model}` },
+              { type: 'text', text: `PKR ${repair.final_cost || repair.estimated_cost || 0}` },
             ],
           },
         ],

@@ -64,18 +64,20 @@ export function RepairPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Create the repair request
+    // Create customer ID from phone (temporary solution)
+    const customerId = `cust-${formData.phone.replace(/\D/g, '')}`;
+    
+    // Create the repair request with new schema
     const repair = addRepairRequest({
-      customerName: formData.name,
-      phone: formData.phone,
-      deviceBrand: formData.brand,
-      deviceModel: formData.device,
-      deviceType: activeDevice as DeviceType,
+      customer_id: customerId,
+      device_brand: formData.brand,
+      device_model: formData.device,
+      device_type: activeDevice as DeviceType,
       issue: formData.issue,
-      serviceType: formData.serviceType || 'General Repair',
+      service_type: formData.serviceType || 'General Repair',
     });
     
-    setSubmittedId(repair.id);
+    setSubmittedId(repair.repair_id);
     setFormSubmitted(true);
   };
 
