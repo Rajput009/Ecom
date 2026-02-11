@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
+import { HelmetProvider } from 'react-helmet-async';
 import { AppProvider } from './context/AppContext';
 import { SupabaseAuthProvider, useSupabaseAuth } from './context/SupabaseAuthContext';
 import { Header } from './components/Header';
@@ -7,6 +8,7 @@ import { Header } from './components/Header';
 // Lazy load all pages for optimal bundle splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(m => ({ default: m.ProductsPage })));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
 const PCBuilderPage = lazy(() => import('./pages/PCBuilderPage').then(m => ({ default: m.PCBuilderPage })));
 const RepairPage = lazy(() => import('./pages/RepairPage').then(m => ({ default: m.RepairPage })));
@@ -56,6 +58,8 @@ function CustomerLayout() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/product/:id/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/pc-builder" element={<PCBuilderPage />} />
           <Route path="/repair" element={<RepairPage />} />
@@ -96,19 +100,21 @@ function AdminRoutes() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <SupabaseAuthProvider>
-        <AppProvider>
-          <Routes>
-            {/* Admin Routes (Check specifically first) */}
-            <Route path="/admin/*" element={<AdminRoutes />} />
+    <HelmetProvider>
+      <BrowserRouter>
+        <SupabaseAuthProvider>
+          <AppProvider>
+            <Routes>
+              {/* Admin Routes (Check specifically first) */}
+              <Route path="/admin/*" element={<AdminRoutes />} />
 
-            {/* All other routes go to Customer Layout */}
-            <Route path="/*" element={<CustomerLayout />} />
-          </Routes>
-        </AppProvider>
-      </SupabaseAuthProvider>
-    </BrowserRouter>
+              {/* All other routes go to Customer Layout */}
+              <Route path="/*" element={<CustomerLayout />} />
+            </Routes>
+          </AppProvider>
+        </SupabaseAuthProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   );
 }
 

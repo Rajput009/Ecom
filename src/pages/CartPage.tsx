@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, CreditCard, Truck, Shield, CheckCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/SEO';
 
 export function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal, clearCart, addOrder } = useApp();
@@ -26,7 +27,7 @@ export function CartPage() {
     const order = {
       id: `ord-${Date.now().toString(36)}`,
       order_number: `ORD-${Date.now().toString(36).toUpperCase()}`,
-      customer_id: `cust-${formData.phone.replace(/\D/g, '')}`, // Temporary customer ID based on phone
+      customer_id: `cust-${formData.phone.replace(/\D/g, '')}`,
       total,
       shipping_cost: shipping,
       tax,
@@ -42,18 +43,19 @@ export function CartPage() {
 
   if (orderPlaced) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center px-4">
+        <SEO title="Order Success" description="Your order has been placed successfully." />
         <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+          <div className="w-20 h-20 bg-[#22c55e]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#22c55e]/20">
+            <CheckCircle className="w-10 h-10 text-[#22c55e]" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Order Placed!</h1>
-          <p className="text-gray-600 mb-8">
-            Thank you for your order. We'll send you a confirmation email with tracking details shortly.
+          <h1 className="text-3xl font-bold text-white mb-4">Order Placed!</h1>
+          <p className="text-[#a1a1aa] mb-8 font-mono text-sm uppercase tracking-wider">
+            SYSTEM_TX_SUCCESS: CONFIRMATION_SENT
           </p>
           <Link
             to="/products"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-[#3b82f6] text-white font-bold rounded-xl hover:bg-[#2563eb] transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] uppercase text-xs tracking-widest"
           >
             Continue Shopping
             <ArrowRight className="w-5 h-5" />
@@ -65,18 +67,19 @@ export function CartPage() {
 
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center px-4 pt-20">
+        <SEO title="Cart Empty" />
         <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <ShoppingBag className="w-10 h-10 text-gray-400" />
+          <div className="w-20 h-20 bg-[#18181b] rounded-full flex items-center justify-center mx-auto mb-6 border border-[#27272a]">
+            <ShoppingBag className="w-10 h-10 text-[#71717a]" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Your cart is empty</h1>
-          <p className="text-gray-600 mb-8">
-            Looks like you haven't added anything to your cart yet. Start shopping and discover amazing deals!
+          <h1 className="text-3xl font-bold text-white mb-4">Your cart is empty</h1>
+          <p className="text-[#71717a] mb-8 font-mono text-xs uppercase tracking-widest">
+            NO_ITEMS_IN_QUEUE
           </p>
           <Link
             to="/products"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-[#3b82f6] text-white font-bold rounded-xl hover:bg-[#2563eb] transition-all uppercase text-xs tracking-widest shadow-lg shadow-blue-500/20"
           >
             Browse Products
             <ArrowRight className="w-5 h-5" />
@@ -87,210 +90,83 @@ export function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/products" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+    <div className="min-h-screen bg-[#0a0a0b] pt-24 pb-16">
+      <SEO title="Shopping Cart" description="Review your selected items and proceed to checkout." />
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex items-center gap-4 mb-12">
+          <Link to="/products" className="p-3 bg-[#18181b] border border-[#27272a] hover:border-[#71717a] text-white rounded-xl transition-all">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Shopping Cart</h1>
-            <p className="text-gray-500">{cart.length} items in your cart</p>
+            <h1 className="text-3xl font-bold text-white">Shopping Cart</h1>
+            <p className="text-[#71717a] font-mono text-xs uppercase tracking-widest mt-1">{cart.length} UNITS_PENDING</p>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {cart.map(({ product, quantity }) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 flex gap-4"
-              >
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-xl"
-                />
+              <div key={product.id} className="bg-[#111113] border border-[#27272a] rounded-2xl p-4 flex gap-6 hover:border-[#3b82f6]/50 transition-colors">
+                <div className="w-24 h-24 md:w-32 md:h-32 bg-[#18181b] rounded-xl overflow-hidden shrink-0 border border-[#27272a]">
+                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-4">
                     <div>
-                      <p className="text-xs font-medium text-blue-600 mb-1">Product</p>
-                      <h3 className="font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
+                      <p className="text-[10px] font-mono text-[#3b82f6] uppercase mb-1">UNIT_COMPONENT</p>
+                      <h3 className="font-bold text-white line-clamp-2 text-sm md:text-base">{product.name}</h3>
                     </div>
-                    <button
-                      onClick={() => removeFromCart(product.id)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors flex-shrink-0"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <button onClick={() => removeFromCart(product.id)} className="p-2 text-[#71717a] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-xl transition-all"><Trash2 className="w-5 h-5" /></button>
                   </div>
 
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-1">
-                      <button
-                        onClick={() => updateQuantity(product.id, quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-8 text-center font-medium">{quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(product.id, quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
+                  <div className="flex items-center justify-between mt-6">
+                    <div className="flex items-center gap-2 bg-[#18181b] rounded-xl p-1 border border-[#27272a]">
+                      <button onClick={() => updateQuantity(product.id, quantity - 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#27272a] transition-colors"><Minus className="w-4 h-4 text-white" /></button>
+                      <span className="w-8 text-center font-mono font-bold text-white text-sm">{quantity}</span>
+                      <button onClick={() => updateQuantity(product.id, quantity + 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#27272a] transition-colors"><Plus className="w-4 h-4 text-white" /></button>
                     </div>
-                    <span className="text-xl font-bold text-gray-900">
-                      ${(product.price * quantity).toLocaleString()}
-                    </span>
+                    <span className="text-xl font-bold text-white font-mono">${(product.price * quantity).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
             ))}
-
-            <button
-              onClick={clearCart}
-              className="text-red-500 text-sm font-medium hover:underline"
-            >
-              Clear Cart
-            </button>
+            <button onClick={clearCart} className="text-[#ef4444] text-[10px] font-mono font-bold hover:underline uppercase tracking-widest pl-2">PURGE_CART</button>
           </div>
 
-          {/* Order Summary / Checkout */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 sticky top-24">
+            <div className="bg-[#111113] border border-[#27272a] rounded-2xl p-6 sticky top-24">
               {!showCheckout ? (
                 <>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-6">Order Summary</h2>
-
-                  <div className="space-y-4 mb-6">
-                    <div className="flex justify-between text-gray-600">
-                      <span>Subtotal</span>
-                      <span>${cartTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Shipping</span>
-                      <span>{shipping === 0 ? 'Free' : `$${shipping}`}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Tax (8%)</span>
-                      <span>${tax.toFixed(2)}</span>
-                    </div>
-                    <div className="h-px bg-gray-100"></div>
-                    <div className="flex justify-between text-lg font-bold text-gray-900">
-                      <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
-                    </div>
+                  <h2 className="text-sm font-bold text-white mb-8 border-b border-[#27272a] pb-4 font-mono uppercase tracking-[0.2em]">Summary</h2>
+                  <div className="space-y-4 mb-8 font-mono text-xs">
+                    <div className="flex justify-between text-[#71717a]"><span>Subtotal</span><span className="text-white">${cartTotal.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-[#71717a]"><span>Shipping</span><span className="text-white">{shipping === 0 ? 'FREE' : `$${shipping}`}</span></div>
+                    <div className="flex justify-between text-[#71717a]"><span>Tax (8%)</span><span className="text-white">${tax.toFixed(2)}</span></div>
+                    <div className="h-px bg-[#27272a]"></div>
+                    <div className="flex justify-between text-xl font-bold text-white pt-2"><span>Total</span><span className="text-[#3b82f6]">${total.toFixed(2)}</span></div>
                   </div>
-
-                  {shipping > 0 && (
-                    <p className="text-sm text-gray-500 mb-6 p-3 bg-blue-50 rounded-xl">
-                      Add ${(500 - cartTotal).toFixed(2)} more for free shipping!
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() => setShowCheckout(true)}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-                  >
-                    Proceed to Checkout
-                    <ArrowRight className="w-5 h-5" />
+                  {shipping > 0 && <p className="text-[10px] text-[#3b82f6] mb-8 font-mono animate-pulse">ADD ${(500 - cartTotal).toFixed(2)} MORE FOR FREE_SHIP</p>}
+                  <button onClick={() => setShowCheckout(true)} className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#3b82f6] text-white font-bold rounded-2xl hover:bg-[#2563eb] transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] uppercase text-xs tracking-widest">
+                    Proceed to Checkout <ArrowRight className="w-5 h-5" />
                   </button>
-
-                  <div className="mt-6 space-y-3">
-                    {[
-                      { icon: CreditCard, text: 'Secure payment' },
-                      { icon: Truck, text: 'Fast delivery' },
-                      { icon: Shield, text: 'Buyer protection' },
-                    ].map(({ icon: Icon, text }) => (
-                      <div key={text} className="flex items-center gap-3 text-sm text-gray-500">
-                        <Icon className="w-4 h-4" />
-                        <span>{text}</span>
-                      </div>
-                    ))}
-                  </div>
                 </>
               ) : (
-                <form onSubmit={handleCheckout}>
-                  <div className="flex items-center gap-2 mb-6">
-                    <button
-                      type="button"
-                      onClick={() => setShowCheckout(false)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <h2 className="text-lg font-semibold text-gray-900">Checkout</h2>
+                <form onSubmit={handleCheckout} className="space-y-4">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#27272a]">
+                    <button type="button" onClick={() => setShowCheckout(false)} className="p-2 hover:bg-[#18181b] rounded-xl text-white transition-colors"><ArrowLeft className="w-4 h-4" /></button>
+                    <h2 className="text-sm font-bold text-white font-mono uppercase tracking-widest">Secure Checkout</h2>
                   </div>
-
-                  <div className="space-y-4 mb-6">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email Address"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone Number"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Street Address"
-                      required
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        placeholder="City"
-                        required
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="text"
-                        placeholder="ZIP Code"
-                        required
-                        value={formData.zip}
-                        onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                  {['name', 'email', 'phone', 'address'].map(f => (
+                    <input key={f} type={f === 'email' ? 'email' : f === 'phone' ? 'tel' : 'text'} placeholder={f.toUpperCase()} required value={(formData as any)[f]} onChange={(e) => setFormData({ ...formData, [f]: e.target.value })} className="w-full px-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
+                  ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="CITY" required value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full px-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
+                    <input type="text" placeholder="ZIP" required value={formData.zip} onChange={(e) => setFormData({ ...formData, zip: e.target.value })} className="w-full px-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
                   </div>
-
-                  <div className="h-px bg-gray-100 mb-4"></div>
-
-                  <div className="flex justify-between text-lg font-bold text-gray-900 mb-6">
-                    <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors"
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    Place Order
+                  <div className="h-px bg-[#27272a] my-6"></div>
+                  <div className="flex justify-between font-bold text-white mb-8"><span className="font-mono text-xs">FINAL_TOTAL</span><span className="text-xl font-mono text-[#3b82f6]">${total.toFixed(2)}</span></div>
+                  <button type="submit" className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#22c55e] text-white font-bold rounded-2xl hover:bg-[#16a34a] transition-all hover:shadow-[0_0_30px_rgba(34,197,94,0.3)] uppercase text-xs tracking-widest">
+                    <CreditCard className="w-5 h-5" /> Place Order
                   </button>
                 </form>
               )}
