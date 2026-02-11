@@ -1,3 +1,4 @@
+// Admin Management Dashboard - Final Categories Refactor
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
