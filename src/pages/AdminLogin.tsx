@@ -15,27 +15,29 @@ export function AdminLogin() {
 
   // Redirect if already logged in as admin
   useEffect(() => {
+    if (isLoading) return; // Wait for auth state to be confirmed
+
     if (user && isAdmin) {
       navigate('/admin');
     } else if (user && !isAdmin) {
       setError('You do not have admin privileges.');
     }
-  }, [user, isAdmin, navigate]);
+  }, [user, isAdmin, isLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError('Please enter both email and password.');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
 
     try {
       const { error: signInError } = await signIn(email, password);
-      
+
       if (signInError) {
         setError('Invalid email or password.');
       }
@@ -53,7 +55,7 @@ export function AdminLogin() {
       <div className="fixed inset-0 bg-circuit opacity-30 pointer-events-none" />
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-[#3b82f6]/5 rounded-full blur-[120px]" />
       <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-[#22c55e]/5 rounded-full blur-[100px]" />
-      
+
       {/* Login Card */}
       <div className="relative w-full max-w-md">
         <div className="bg-[#111113] border border-[#27272a] rounded-2xl p-8 shadow-2xl">
@@ -146,8 +148,8 @@ export function AdminLogin() {
 
         {/* Back to Store */}
         <div className="text-center mt-6">
-          <a 
-            href="/" 
+          <a
+            href="/"
             className="text-sm text-[#71717a] hover:text-[#3b82f6] transition-colors"
           >
             ← Back to Store

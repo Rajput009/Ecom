@@ -46,7 +46,6 @@ class DatabaseService {
     if (!supabase) throw new Error('Supabase not configured');
     const now = new Date().toISOString();
     const newCategory = {
-      id: crypto.randomUUID(),
       name,
       icon,
       product_count: 0,
@@ -107,7 +106,6 @@ class DatabaseService {
     const now = new Date().toISOString();
     const newProduct = {
       ...product,
-      id: crypto.randomUUID(),
       rating: 0,
       reviews: 0,
       created_at: now,
@@ -168,7 +166,6 @@ class DatabaseService {
     const now = new Date().toISOString();
     const newCustomer = {
       ...customer,
-      id: crypto.randomUUID(),
       created_at: now,
       updated_at: now,
     };
@@ -224,8 +221,7 @@ class DatabaseService {
     const now = new Date().toISOString();
     const newOrder = {
       ...order,
-      id: crypto.randomUUID(),
-      order_number: `ORD-${Date.now().toString(36).toUpperCase()}`, // Fallback, DB will generate proper one
+      order_number: `TEMP-${Date.now().toString(36).toUpperCase()}`, // DB trigger will override
       created_at: now,
       updated_at: now,
     };
@@ -287,7 +283,6 @@ class DatabaseService {
     if (!supabase) throw new Error('Supabase not configured');
     const newItem = {
       ...item,
-      id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
 
@@ -408,8 +403,7 @@ class DatabaseService {
     const now = new Date().toISOString();
     const newRepair = {
       ...repair,
-      id: crypto.randomUUID(),
-      repair_id: `REP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      repair_id: `TEMP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, // DB trigger will override
       notified_customer: false,
       created_at: now,
       updated_at: now,

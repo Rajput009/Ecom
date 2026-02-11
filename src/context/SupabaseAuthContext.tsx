@@ -20,23 +20,6 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check admin status
-  const checkAdminStatus = async (): Promise<boolean> => {
-    if (!user || !supabase) return false;
-    
-    try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (error || !data) return false;
-      return true;
-    } catch {
-      return false;
-    }
-  };
 
   // Listen for auth changes
   useEffect(() => {
@@ -46,9 +29,16 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        const isUserAdmin = await verifyAdminStatus(currentUser.id);
+        setIsAdmin(isUserAdmin);
+      }
+
       setIsLoading(false);
     });
 
@@ -56,12 +46,15 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
-        
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
         // Check admin status when session changes
-        if (session?.user) {
-          const isUserAdmin = await checkAdminStatus();
+        if (currentUser) {
+          setIsLoading(true); // Re-validate admin status
+          const isUserAdmin = await verifyAdminStatus(currentUser.id);
           setIsAdmin(isUserAdmin);
+          setIsLoading(false);
         } else {
           setIsAdmin(false);
         }
@@ -71,14 +64,22 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Check admin status when user changes
-  useEffect(() => {
-    if (user) {
-      checkAdminStatus().then(setIsAdmin);
-    } else {
-      setIsAdmin(false);
+  // Internal verification function
+  const verifyAdminStatus = async (userId: string): Promise<boolean> => {
+    if (!supabase) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      return !error && !!data;
+    } catch {
+      return false;
     }
-  }, [user]);
+  };
 
   // Sign in with email/password
   const signIn = async (email: string, password: string) => {
@@ -91,7 +92,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
-      
+
       return { error };
     } catch (error) {
       return { error: error as Error };
@@ -115,7 +116,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         signIn,
         signOut,
-        checkAdminStatus,
+        checkAdminStatus: async () => user ? verifyAdminStatus(user.id) : false,
       }}
     >
       {children}

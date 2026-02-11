@@ -1,12 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useSupabaseAuth } from '../context/SupabaseAuthContext';
 import { AdminTab, Product, Category, RepairRequest, RepairStatus, Order, Customer } from '../types';
-import { 
-  LayoutDashboard, Package, ShoppingCart, Wrench, Tags, Settings, 
+import {
+  LayoutDashboard, Package, ShoppingCart, Wrench, Tags, Settings,
   Plus, Search, Edit2, Trash2, X, Check,
-  DollarSign, AlertCircle,
+  DollarSign, AlertCircle, RefreshCw,
   ArrowLeft, Filter, LogOut, BarChart3
 } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -52,9 +52,33 @@ const getCategoryName = (categoryId: string, categories: Category[]) => {
 
 export function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [isRefreshing, setIsRefreshing] = useState(true);
   const navigate = useNavigate();
   const { signOut } = useSupabaseAuth();
-  const { orders, products, repairRequests } = useApp();
+  const {
+    orders, products, repairRequests,
+    refreshOrders, refreshRepairRequests, refreshCustomers, refreshCategories
+  } = useApp();
+
+  // Refresh data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsRefreshing(true);
+        await Promise.all([
+          refreshOrders(),
+          refreshRepairRequests(),
+          refreshCustomers(),
+          refreshCategories()
+        ]);
+      } catch (error) {
+        console.error('Failed to load admin data:', error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+    loadData();
+  }, [refreshOrders, refreshRepairRequests, refreshCustomers, refreshCategories]);
 
   const handleLogout = async () => {
     await signOut();
@@ -133,16 +157,53 @@ export function AdminPanel() {
               </button>
             ))}
           </nav>
+
+          <div className="p-4 border-t border-[#27272a] space-y-2 mt-auto">
+            <button
+              onClick={() => {
+                const loadData = async () => {
+                  try {
+                    setIsRefreshing(true);
+                    await Promise.all([
+                      refreshOrders(),
+                      refreshRepairRequests(),
+                      refreshCustomers(),
+                      refreshCategories()
+                    ]);
+                  } catch (error) {
+                    console.error('Failed to load admin data:', error);
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                };
+                loadData();
+              }}
+              disabled={isRefreshing}
+              className="w-full flex items-center gap-3 px-4 py-3 text-[#a1a1aa] hover:text-[#3b82f6] hover:bg-[#18181b] rounded-lg transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
+              <span className="text-sm font-medium">Refresh Data</span>
+            </button>
+          </div>
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 p-6">
-          {activeTab === 'dashboard' && <DashboardTab stats={stats} />}
-          {activeTab === 'products' && <ProductsTab />}
-          {activeTab === 'orders' && <OrdersTab />}
-          {activeTab === 'repairs' && <RepairsTab />}
-          {activeTab === 'categories' && <CategoriesTab />}
-          {activeTab === 'settings' && <SettingsTab />}
+          {isRefreshing ? (
+            <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
+              <div className="w-8 h-8 border-2 border-[#27272a] border-t-[#3b82f6] rounded-full animate-spin" />
+              <p className="text-sm font-mono text-[#71717a] uppercase tracking-wider">REFRESHING_ADMIN_DATABASE...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'dashboard' && <DashboardTab stats={stats} />}
+              {activeTab === 'products' && <ProductsTab />}
+              {activeTab === 'orders' && <OrdersTab />}
+              {activeTab === 'repairs' && <RepairsTab />}
+              {activeTab === 'categories' && <CategoriesTab />}
+              {activeTab === 'settings' && <SettingsTab />}
+            </>
+          )}
         </main>
       </div>
     </div>
@@ -293,9 +354,27 @@ function ProductsTab() {
     getCategoryName(p.category_id, categories).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      deleteProduct(id);
+      try {
+        await deleteProduct(id);
+      } catch (err: any) {
+        alert('Could not delete product: ' + (err.message || 'Check database constraints.'));
+      }
+    }
+  };
+
+  const handleSave = async (product: any) => {
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, product);
+      } else {
+        await addProduct(product);
+      }
+      setShowAddModal(false);
+      setEditingProduct(null);
+    } catch (err: any) {
+      alert('Failed to save product: ' + (err.message || 'Please check your data and network.'));
     }
   };
 
@@ -353,8 +432,8 @@ function ProductsTab() {
                     <span className={cn(
                       "text-xs px-2 py-1 rounded",
                       product.stock > 20 ? 'text-[#22c55e] bg-[#22c55e]/10' :
-                      product.stock > 5 ? 'text-[#f59e0b] bg-[#f59e0b]/10' :
-                      'text-[#ef4444] bg-[#ef4444]/10'
+                        product.stock > 5 ? 'text-[#f59e0b] bg-[#f59e0b]/10' :
+                          'text-[#ef4444] bg-[#ef4444]/10'
                     )}>
                       {product.stock} units
                     </span>
@@ -391,15 +470,7 @@ function ProductsTab() {
             setShowAddModal(false);
             setEditingProduct(null);
           }}
-          onSave={(product: Partial<Product>) => {
-            if (editingProduct) {
-              updateProduct(editingProduct.id, product);
-            } else {
-              addProduct(product as Omit<Product, 'id' | 'rating' | 'reviews' | 'created_at' | 'updated_at'>);
-            }
-            setShowAddModal(false);
-            setEditingProduct(null);
-          }}
+          onSave={handleSave}
         />
       )}
     </div>
@@ -433,10 +504,19 @@ function ProductModal({ product, categories, onClose, onSave }: any) {
       <div className="bg-[#111113] border border-[#27272a] rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-[#27272a]">
           <h2 className="text-lg font-semibold">{product ? 'Edit Product' : 'Add Product'}</h2>
-          <button onClick={onClose} className="text-[#71717a] hover:text-white">
+          <button type="button" onClick={onClose} className="text-[#71717a] hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {categories.length === 0 && (
+          <div className="p-4 m-6 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-xs text-red-500 text-center font-medium">
+              ⚠️ No categories found. Please add a category first!
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm text-[#71717a] mb-1">Name</label>
@@ -541,7 +621,8 @@ function ProductModal({ product, categories, onClose, onSave }: any) {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors"
+              disabled={categories.length === 0}
+              className="flex-1 px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {product ? 'Save Changes' : 'Add Product'}
             </button>
@@ -604,8 +685,8 @@ function RepairsTab() {
   const [filter, setFilter] = useState<RepairStatus | 'all'>('all');
   const [selectedRepair, setSelectedRepair] = useState<RepairRequest | null>(null);
 
-  const filteredRepairs = filter === 'all' 
-    ? repairRequests 
+  const filteredRepairs = filter === 'all'
+    ? repairRequests
     : repairRequests.filter(r => r.status === filter);
 
   const statusOptions: RepairStatus[] = [
@@ -677,9 +758,13 @@ function RepairsTab() {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (confirm('Delete this repair request?')) {
-                            deleteRepairRequest(repair.id);
+                            try {
+                              await deleteRepairRequest(repair.id);
+                            } catch (err: any) {
+                              alert('Failed to delete repair request: ' + (err.message || 'Unknown error.'));
+                            }
                           }
                         }}
                         className="p-2 text-[#71717a] hover:text-[#ef4444]"
@@ -836,22 +921,47 @@ function CategoriesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (newCategory.trim()) {
-      addCategory(newCategory.trim());
-      setNewCategory('');
+      try {
+        await addCategory(newCategory.trim());
+        setNewCategory('');
+      } catch (err: any) {
+        alert('Failed to add category: ' + (err.message || 'Check for duplicate names.'));
+      }
+    } else {
+      alert('Please enter a category name.');
     }
   };
 
-  const handleUpdate = (id: string) => {
+  const handleUpdate = async (id: string) => {
     if (editName.trim()) {
-      updateCategory(id, editName.trim());
-      setEditingId(null);
+      try {
+        await updateCategory(id, editName.trim());
+        setEditingId(null);
+      } catch (err) {
+        alert('Failed to update category.');
+      }
+    }
+  };
+
+  const handleDelete = async (category: Category) => {
+    if (confirm(`Delete category "${category.name}"?`)) {
+      try {
+        await deleteCategory(category.id);
+      } catch (err: any) {
+        alert('Could not delete category: ' + (err.message || 'Check if products are still assigned to it.'));
+      }
     }
   };
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold border-l-4 border-[#3b82f6] pl-4">Manage Categories</h2>
+        <span className="text-xs font-mono text-[#71717a]">{categories.length} CATEGORIES_SYNCED</span>
+      </div>
+
       <div className="flex gap-2">
         <input
           type="text"
@@ -893,20 +1003,22 @@ function CategoriesTab() {
                     <span className="font-medium">{category.name}</span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-sm text-[#71717a]">{category.product_count} products</td>
+                <td className="px-6 py-4 text-sm text-[#71717a]">
+                  {category.product_count} products
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     {editingId === category.id ? (
                       <>
                         <button
                           onClick={() => handleUpdate(category.id)}
-                          className="p-2 text-[#22c55e]"
+                          className="p-2 text-[#22c55e] hover:bg-[#22c55e]/10 rounded"
                         >
                           <Check className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setEditingId(null)}
-                          className="p-2 text-[#71717a]"
+                          className="p-2 text-[#ef4444] hover:bg-[#ef4444]/10 rounded"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -923,11 +1035,7 @@ function CategoriesTab() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Delete category "${category.name}"?`)) {
-                              deleteCategory(category.id);
-                            }
-                          }}
+                          onClick={() => handleDelete(category)}
                           className="p-2 text-[#71717a] hover:text-[#ef4444]"
                         >
                           <Trash2 className="w-4 h-4" />
