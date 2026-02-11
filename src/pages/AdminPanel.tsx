@@ -917,15 +917,17 @@ function RepairDetailModal({ repair, customers, onClose, onUpdate }: any) {
 // Categories Tab
 function CategoriesTab() {
   const { categories, addCategory, updateCategory, deleteCategory } = useApp();
-  const [newCategory, setNewCategory] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
   const handleAdd = async () => {
-    if (newCategory.trim()) {
+    if (newCategoryName.trim()) {
       try {
-        await addCategory(newCategory.trim());
-        setNewCategory('');
+        await addCategory(newCategoryName.trim());
+        setNewCategoryName('');
+        setShowAddModal(false);
       } catch (err: any) {
         alert('Failed to add category: ' + (err.message || 'Check for duplicate names.'));
       }
@@ -958,23 +960,16 @@ function CategoriesTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold border-l-4 border-[#3b82f6] pl-4">Manage Categories</h2>
-        <span className="text-xs font-mono text-[#71717a]">{categories.length} CATEGORIES_SYNCED</span>
-      </div>
-
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={newCategory}
-          onChange={e => setNewCategory(e.target.value)}
-          placeholder="New category name"
-          className="flex-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white placeholder:text-[#52525b]"
-        />
+        <div>
+          <h2 className="text-lg font-semibold border-l-4 border-[#3b82f6] pl-4">Manage Categories</h2>
+          <p className="text-sm text-[#71717a] ml-4 mt-1">Found {categories.length} categories in database</p>
+        </div>
         <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb]"
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors"
         >
           <Plus className="w-4 h-4" />
+          Add Category
         </button>
       </div>
 
@@ -1049,6 +1044,53 @@ function CategoriesTab() {
           </tbody>
         </table>
       </div>
+
+      {/* Add Category Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#111113] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-[#27272a]">
+              <h2 className="text-lg font-semibold">Add New Category</h2>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-2 text-[#71717a] hover:text-white hover:bg-[#18181b] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleAdd(); }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#71717a] mb-1.5">Category Name</label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Graphic Cards"
+                  className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-white focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] transition-all"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-4 py-2 border border-[#27272a] text-[#a1a1aa] rounded-lg hover:bg-[#18181b] hover:text-white transition-all font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-all font-medium shadow-lg shadow-blue-500/20"
+                >
+                  Create Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
