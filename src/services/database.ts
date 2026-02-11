@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   Product, Category, Customer, Order, OrderItem, RepairRequest,
   OrderComplete, ProductWithCategory, OrderWithCustomer, RepairRequestWithCustomer,
-  CartItem, OrderStatus, RepairStatus
+  CartItem, OrderStatus, RepairStatus, SecureOrderStatus, SecureRepairStatus
 } from '../types';
 import { whatsappService } from './whatsapp';
 
@@ -259,6 +259,16 @@ class DatabaseService {
     if (error) throw error;
   }
 
+  async trackOrder(orderNumber: string, phone: string): Promise<SecureOrderStatus | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc('get_order_status', {
+      p_order_number: orderNumber,
+      p_phone: phone
+    });
+    if (error) return null;
+    return data as SecureOrderStatus;
+  }
+
   // ============================================================================
   // ORDER ITEMS
   // ============================================================================
@@ -377,26 +387,18 @@ class DatabaseService {
     return data;
   }
 
-  async getRepairByIdAndPhone(repairId: string, phone: string): Promise<RepairRequestWithCustomer | null> {
+  async getRepairByIdAndPhone(repairId: string, phone: string): Promise<SecureRepairStatus | null> {
+    return this.trackRepair(repairId, phone);
+  }
+
+  async trackRepair(repairId: string, phone: string): Promise<SecureRepairStatus | null> {
     if (!supabase) return null;
-    // Normalize phone number
-    const normalizedPhone = phone.replace(/\D/g, '').replace(/^0/, '').replace(/^92/, '');
-
-    // Get repair with customer join
-    const { data: repairs, error } = await supabase
-      .from('repairs_with_customers')
-      .select('*')
-      .eq('repair_id', repairId);
-
-    if (error || !repairs || repairs.length === 0) return null;
-
-    // Find matching phone
-    const repair = repairs.find(r => {
-      const rPhone = r.customer_phone.replace(/\D/g, '').replace(/^0/, '').replace(/^92/, '');
-      return rPhone === normalizedPhone;
+    const { data, error } = await supabase.rpc('get_repair_status', {
+      p_repair_id: repairId,
+      p_phone: phone
     });
-
-    return repair || null;
+    if (error) return null;
+    return data as SecureRepairStatus;
   }
 
   async addRepairRequest(

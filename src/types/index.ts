@@ -104,6 +104,18 @@ export interface OrderWithCustomer extends Order {
   customer_address?: string;
 }
 
+// Minimal order data for public tracking (via secure RPC)
+export interface SecureOrderStatus {
+  order_number: string;
+  status: OrderStatus;
+  total: number;
+  tracking_number?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+  customer_name: string;
+}
+
 // ============================================================================
 // ORDER ITEM
 // ============================================================================
@@ -157,6 +169,23 @@ export interface RepairRequestWithCustomer extends RepairRequest {
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
+}
+
+// Minimal repair data for public tracking (via secure RPC)
+export interface SecureRepairStatus {
+  repair_id: string;
+  device_brand: string;
+  device_model: string;
+  status: RepairStatus;
+  issue: string;
+  service_type: string;
+  notes?: string;
+  estimated_cost?: number;
+  final_cost?: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+  customer_name: string;
 }
 
 // ============================================================================

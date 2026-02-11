@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search, Smartphone, CheckCircle, XCircle, ArrowLeft, Wrench } from 'lucide-react';
 import { db } from '../services/database';
-import { RepairRequest } from '../types';
+import { SecureRepairStatus } from '../types';
 import { cn } from '../utils/cn';
 
 const repairStatusColors: Record<string, string> = {
@@ -27,7 +27,7 @@ const repairStatusLabels: Record<string, string> = {
 export function TrackRepair() {
   const [repairId, setRepairId] = useState('');
   const [phone, setPhone] = useState('');
-  const [repair, setRepair] = useState<RepairRequest | null>(null);
+  const [repair, setRepair] = useState<SecureRepairStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
@@ -40,7 +40,7 @@ export function TrackRepair() {
 
     try {
       const result = await db.getRepairByIdAndPhone(repairId.trim(), phone.trim());
-      
+
       if (result) {
         setRepair(result);
       } else {
@@ -71,10 +71,10 @@ export function TrackRepair() {
     <div className="min-h-screen bg-[#0a0a0b] pt-20">
       {/* Background */}
       <div className="fixed inset-0 bg-circuit opacity-30 pointer-events-none" />
-      
+
       <div className="relative max-w-2xl mx-auto px-4 py-12">
         {/* Back Button */}
-        <a 
+        <a
           href="/"
           className="inline-flex items-center gap-2 text-[#71717a] hover:text-white transition-colors mb-8"
         >
@@ -156,7 +156,7 @@ export function TrackRepair() {
             <div className="flex items-center justify-between mb-6 pb-6 border-b border-[#27272a]">
               <div>
                 <p className="text-sm text-[#71717a] mb-1">Repair ID</p>
-                <p className="text-xl font-mono font-bold text-white">{repair.id}</p>
+                <p className="text-xl font-mono font-bold text-white">{repair.repair_id}</p>
               </div>
               <div className="text-right">
                 <span className={cn(
@@ -175,11 +175,11 @@ export function TrackRepair() {
                 <div className="flex items-center justify-between relative">
                   {/* Progress Line */}
                   <div className="absolute left-0 right-0 top-1/2 h-1 bg-[#27272a] -translate-y-1/2" />
-                  <div 
+                  <div
                     className="absolute left-0 top-1/2 h-1 bg-[#3b82f6] -translate-y-1/2 transition-all"
                     style={{ width: `${(getStatusStep(repair.status) / 5) * 100}%` }}
                   />
-                  
+
                   {/* Steps */}
                   {[
                     { step: 1, label: 'Received', icon: Smartphone },
@@ -191,7 +191,7 @@ export function TrackRepair() {
                     const currentStep = getStatusStep(repair.status);
                     const isActive = step <= currentStep;
                     const isCurrent = step === currentStep;
-                    
+
                     return (
                       <div key={step} className="relative z-10 flex flex-col items-center">
                         <div className={cn(
@@ -233,14 +233,8 @@ export function TrackRepair() {
             </div>
 
             {/* Additional Info */}
-            {(repair.technician || repair.estimated_cost || repair.notes) && (
+            {(repair.estimated_cost || repair.notes) && (
               <div className="space-y-3 mb-6 pt-6 border-t border-[#27272a]">
-                {repair.technician && (
-                  <div className="flex justify-between">
-                    <span className="text-[#71717a]">Technician</span>
-                    <span>{repair.technician}</span>
-                  </div>
-                )}
                 {repair.estimated_cost && (
                   <div className="flex justify-between">
                     <span className="text-[#71717a]">Estimated Cost</span>
