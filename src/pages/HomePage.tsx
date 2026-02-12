@@ -103,6 +103,22 @@ export function HomePage() {
                 </Link>
               </div>
             </div>
+            <div className="hidden lg:block relative">
+              <div className="relative rounded-2xl overflow-hidden border border-[#27272a] shadow-2xl shadow-blue-500/10">
+                <img 
+                  src="/hero.avif" 
+                  alt="High-Performance Gaming PC with RGB Lighting" 
+                  className="w-full h-auto object-cover rounded-2xl"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b]/80 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[#18181b]/80 backdrop-blur-sm border border-[#27272a] rounded-full w-fit">
+                    <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse" />
+                    <span className="text-xs font-mono text-[#a1a1aa]">RGB_ENABLED</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
