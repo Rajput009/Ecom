@@ -9,6 +9,7 @@ import { usePCComponents } from '../hooks/useProducts';
 import { PCComponent, PCBuild } from '../types';
 import { cn } from '../utils/cn';
 import { SEO } from '../components/SEO';
+import { Footer } from '../components/Footer';
 
 const componentTypes = [
   { type: 'cpu', label: 'Processor (CPU)', icon: Cpu, required: true, color: 'blue' },

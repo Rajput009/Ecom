@@ -1049,7 +1049,7 @@ function CategoriesTab() {
       {/* Add Category Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#111113] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#111113] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-[#27272a]">
               <h2 className="text-lg font-semibold">Add New Category</h2>
               <button
