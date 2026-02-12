@@ -103,37 +103,6 @@ export function HomePage() {
                 </Link>
               </div>
             </div>
-            <div className="hidden lg:block relative">
-              <div className="relative bg-[#111113] border border-[#27272a] rounded-2xl p-6 animate-slide-in-right">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
-                    <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
-                    <div className="w-3 h-3 rounded-full bg-[#22c55e]" />
-                  </div>
-                  <span className="text-xs font-mono text-[#71717a]">PC_BUILDER.exe</span>
-                </div>
-                <div className="space-y-4">
-                  {[
-                    { label: 'CPU', value: 'Intel Core i9-14900K', status: 'optimal' },
-                    { label: 'GPU', value: 'NVIDIA RTX 4090', status: 'optimal' },
-                    { label: 'RAM', value: '64GB DDR5-6000', status: 'optimal' },
-                    { label: 'Storage', value: '2TB NVMe Gen4', status: 'optimal' },
-                  ].map((spec) => (
-                    <div key={spec.label} className="flex items-center justify-between py-3 border-b border-[#27272a] last:border-0">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-[#71717a] w-16">{spec.label}</span>
-                        <span className="text-sm text-white">{spec.value}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                        <span className="text-xs font-mono text-[#22c55e] uppercase">{spec.status}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
