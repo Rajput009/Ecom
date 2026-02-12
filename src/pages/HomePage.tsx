@@ -78,46 +78,39 @@ export function HomePage() {
       <div className="fixed inset-0 bg-circuit opacity-50 pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#3b82f6]/5 via-transparent to-transparent" />
-        <div className="relative max-w-7xl mx-auto px-4 py-16 lg:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="animate-slide-up">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-full mb-6">
-                <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse" />
-                <span className="text-xs font-mono text-[#a1a1aa]">SYSTEM ONLINE</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-                Build Your
-                <span className="block text-[#3b82f6]">Ultimate Rig</span>
-              </h1>
-              <p className="text-[#a1a1aa] text-lg mb-8 max-w-md">
-                Premium PC components for enthusiasts. From high-performance GPUs to custom cooling solutions. Delivered across Pakistan.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-[#3b82f6] text-white font-medium rounded-lg hover:bg-[#2563eb] transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]">
-                  <ShoppingCart className="w-4 h-4" /> Shop Components <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link to="/pc-builder" className="inline-flex items-center gap-2 px-6 py-3 bg-[#18181b] text-white font-medium rounded-lg border border-[#27272a] hover:border-[#3b82f6] transition-all">
-                  <Cpu className="w-4 h-4" /> PC Builder
-                </Link>
-              </div>
+      <section className="relative overflow-hidden min-h-[600px] lg:min-h-[700px] flex items-center">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="/hero.avif" 
+            alt="" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0b] via-[#0a0a0b]/90 to-[#0a0a0b]/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b] via-transparent to-[#0a0a0b]/30" />
+        </div>
+        
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-4 py-16 lg:py-24 w-full">
+          <div className="max-w-xl animate-slide-up">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#18181b]/80 backdrop-blur-sm border border-[#27272a] rounded-full mb-6">
+              <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse" />
+              <span className="text-xs font-mono text-[#a1a1aa]">SYSTEM ONLINE</span>
             </div>
-            <div className="hidden lg:block relative">
-              <div className="relative rounded-2xl overflow-hidden border border-[#27272a] shadow-2xl shadow-blue-500/10">
-                <img 
-                  src="/hero.avif" 
-                  alt="High-Performance Gaming PC with RGB Lighting" 
-                  className="w-full h-auto object-cover rounded-2xl"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b]/80 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[#18181b]/80 backdrop-blur-sm border border-[#27272a] rounded-full w-fit">
-                    <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse" />
-                    <span className="text-xs font-mono text-[#a1a1aa]">RGB_ENABLED</span>
-                  </div>
-                </div>
-              </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+              Build Your
+              <span className="block text-[#3b82f6]">Ultimate Rig</span>
+            </h1>
+            <p className="text-[#a1a1aa] text-lg mb-8 max-w-md">
+              Premium PC components for enthusiasts. From high-performance GPUs to custom cooling solutions. Delivered across Pakistan.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-[#3b82f6] text-white font-medium rounded-lg hover:bg-[#2563eb] transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]">
+                <ShoppingCart className="w-4 h-4" /> Shop Components <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link to="/pc-builder" className="inline-flex items-center gap-2 px-6 py-3 bg-[#18181b]/80 backdrop-blur-sm text-white font-medium rounded-lg border border-[#27272a] hover:border-[#3b82f6] transition-all">
+                <Cpu className="w-4 h-4" /> PC Builder
+              </Link>
             </div>
           </div>
         </div>
