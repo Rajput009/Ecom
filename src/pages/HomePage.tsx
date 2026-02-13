@@ -132,24 +132,55 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Rest of the sections remain same but with semantic updates */}
+      {/* Featured Categories with Animated Icons */}
       <section className="relative py-16 border-t border-[#27272a]">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-white mb-8 border-l-4 border-[#3b82f6] pl-4">Shop by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {homeCategories.map((cat) => (
-              <Link key={cat.id} to={`/products?category=${encodeURIComponent(cat.name)}`} className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-                <div className="w-10 h-10 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
-                  {cat.animatedIcon ? (
-                    <cat.animatedIcon size={40} isAnimated={false} />
-                  ) : (
-                    <cat.icon className="w-5 h-5 text-[#3b82f6]" />
-                  )}
-                </div>
-                <h3 className="text-sm font-medium text-white mb-1">{cat.name}</h3>
-                <span className="text-[10px] text-[#71717a] font-mono">{cat.product_count} PRODUCTS_INDEXED</span>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* CPU */}
+            <Link to="/products?category=CPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.cpu size={48} isAnimated={false} />
+              </div>
+              <h3 className="text-sm font-medium text-white mb-1">CPU</h3>
+              <span className="text-[10px] text-[#71717a] font-mono">PROCESSORS</span>
+            </Link>
+            
+            {/* Motherboard */}
+            <Link to="/products?category=Motherboard" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.motherboard size={48} isAnimated={false} />
+              </div>
+              <h3 className="text-sm font-medium text-white mb-1">Motherboard</h3>
+              <span className="text-[10px] text-[#71717a] font-mono">MOTHERBOARDS</span>
+            </Link>
+            
+            {/* GPU */}
+            <Link to="/products?category=GPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.gpu size={48} isAnimated={false} />
+              </div>
+              <h3 className="text-sm font-medium text-white mb-1">GPU</h3>
+              <span className="text-[10px] text-[#71717a] font-mono">GRAPHICS CARDS</span>
+            </Link>
+            
+            {/* Memory */}
+            <Link to="/products?category=Memory" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.ram size={48} isAnimated={false} />
+              </div>
+              <h3 className="text-sm font-medium text-white mb-1">Memory</h3>
+              <span className="text-[10px] text-[#71717a] font-mono">RAM</span>
+            </Link>
+            
+            {/* Storage */}
+            <Link to="/products?category=Storage" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.storage size={48} isAnimated={false} />
+              </div>
+              <h3 className="text-sm font-medium text-white mb-1">Storage</h3>
+              <span className="text-[10px] text-[#71717a] font-mono">SSD / HDD</span>
+            </Link>
           </div>
         </div>
       </section>
