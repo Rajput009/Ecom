@@ -14,6 +14,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Local storage keys
+const ADMIN_CACHE_KEY = 'zulfiqar_admin_cache';
+const ADMIN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+interface AdminCache {
+  userId: string;
+  isAdmin: boolean;
+  timestamp: number;
+}
+
 // Timeout wrapper for async operations
 const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
   return Promise.race([
@@ -22,6 +32,36 @@ const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
       setTimeout(() => reject(new Error('Operation timed out')), ms)
     )
   ]);
+};
+
+// Get cached admin status
+const getCachedAdminStatus = (userId: string): boolean | null => {
+  try {
+    const cached = localStorage.getItem(ADMIN_CACHE_KEY);
+    if (!cached) return null;
+    
+    const data: AdminCache = JSON.parse(cached);
+    if (data.userId !== userId) return null;
+    if (Date.now() - data.timestamp > ADMIN_CACHE_DURATION) return null;
+    
+    return data.isAdmin;
+  } catch {
+    return null;
+  }
+};
+
+// Set cached admin status
+const setCachedAdminStatus = (userId: string, isAdmin: boolean) => {
+  try {
+    const data: AdminCache = {
+      userId,
+      isAdmin,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore storage errors
+  }
 };
 
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
@@ -50,7 +90,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         
         const { data: { session } } = await withTimeout(
           supabase.auth.getSession(),
-          10000 // 10 second timeout
+          15000 // 15 second timeout for initial session
         );
         
         if (!mounted) return;
@@ -60,13 +100,23 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
 
         if (currentUser) {
-          const isUserAdmin = await verifyAdminStatus(currentUser.id);
-          if (mounted) setIsAdmin(isUserAdmin);
+          // Check cache first
+          const cachedStatus = getCachedAdminStatus(currentUser.id);
+          if (cachedStatus !== null) {
+            setIsAdmin(cachedStatus);
+          } else {
+            // Verify with backend
+            const isUserAdmin = await verifyAdminStatus(currentUser.id);
+            if (mounted) {
+              setIsAdmin(isUserAdmin);
+              setCachedAdminStatus(currentUser.id, isUserAdmin);
+            }
+          }
         }
 
         if (mounted) setIsLoading(false);
       } catch (error) {
-        console.error('Session init error:', error);
+        // Silently handle session init errors
         if (mounted) setIsLoading(false);
       }
     };
@@ -84,16 +134,27 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
         // Check admin status when session changes
         if (currentUser) {
+          // Check cache first to avoid unnecessary API calls
+          const cachedStatus = getCachedAdminStatus(currentUser.id);
+          if (cachedStatus !== null) {
+            setIsAdmin(cachedStatus);
+            setIsLoading(false);
+            return;
+          }
+          
           setIsLoading(true);
           try {
             const isUserAdmin = await withTimeout(
               verifyAdminStatus(currentUser.id),
-              5000 // 5 second timeout for admin check
+              15000 // 15 second timeout
             );
-            if (mounted) setIsAdmin(isUserAdmin);
-          } catch (error) {
-            console.error('Admin verification error:', error);
-            // Keep existing admin status on error
+            if (mounted) {
+              setIsAdmin(isUserAdmin);
+              setCachedAdminStatus(currentUser.id, isUserAdmin);
+            }
+          } catch {
+            // On timeout/error, don't change admin status
+            // User can retry by refreshing
           }
           if (mounted) setIsLoading(false);
         } else {
@@ -109,21 +170,39 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Internal verification function
-  const verifyAdminStatus = async (userId: string): Promise<boolean> => {
+  // Internal verification function with retry
+  const verifyAdminStatus = async (userId: string, retries = 2): Promise<boolean> => {
     if (!supabase) return false;
 
-    try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('role')
-        .eq('id', userId)
-        .single();
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('admin_users')
+          .select('role')
+          .eq('id', userId)
+          .single();
 
-      return !error && !!data;
-    } catch {
-      return false;
+        if (!error && !!data) {
+          return true;
+        }
+        
+        // If no data found, user is not an admin
+        if (error?.code === 'PGRST116') {
+          return false;
+        }
+        
+        // For other errors, retry
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      } catch {
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
     }
+    
+    return false;
   };
 
   // Sign in with email/password
@@ -150,6 +229,12 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
     }
     setIsAdmin(false);
+    // Clear admin cache on sign out
+    try {
+      localStorage.removeItem(ADMIN_CACHE_KEY);
+    } catch {
+      // Ignore
+    }
   };
 
   return (
