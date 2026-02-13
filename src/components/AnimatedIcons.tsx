@@ -1,5 +1,6 @@
 // Optimized Animated Industrial Tech Icons
 // Lightweight SVG icons with CSS animations for performance
+// CSP-safe: Uses CSS animations instead of SMIL <animate> elements
 
 import React from 'react';
 
@@ -21,14 +22,54 @@ const THEME = {
   textTertiary: '#71717a',
 };
 
+// CSS keyframes injected once
+const styleId = 'animated-icons-styles';
+if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `
+    @keyframes iconPulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    @keyframes iconBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    @keyframes iconRgbShift {
+      0%, 100% { fill: #3b82f6; }
+      50% { fill: #9333ea; }
+    }
+    @keyframes iconDataFlow {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+    @keyframes iconGlow {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 0.8; }
+    }
+    @keyframes iconSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .icon-pulse { animation: iconPulse 2s ease-in-out infinite; }
+    .icon-blink { animation: iconBlink 1s ease-in-out infinite; }
+    .icon-rgb { animation: iconRgbShift 3s ease-in-out infinite; }
+    .icon-data-flow { animation: iconDataFlow 1.5s ease-in-out infinite; }
+    .icon-glow { animation: iconGlow 2s ease-in-out infinite; }
+    .icon-spin { animation: iconSpin 3s linear infinite; }
+    .icon-spin-fast { animation: iconSpin 1.5s linear infinite; }
+    .icon-spin-slow { animation: iconSpin 4s linear infinite; }
+  `;
+  document.head.appendChild(style);
+}
+
 // Optimized CPU Icon
 export const AnimatedCPU: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated = true }) => (
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
     <rect x="8" y="8" width="32" height="32" rx="2" fill={THEME.bgTertiary} stroke={THEME.border} strokeWidth="1"/>
     <rect x="14" y="14" width="20" height="20" rx="1" fill={THEME.bgSecondary} stroke={THEME.border}/>
-    <rect x="18" y="18" width="12" height="12" fill={THEME.blue} opacity="0.8">
-      {isAnimated && <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>}
-    </rect>
+    <rect x="18" y="18" width="12" height="12" fill={THEME.blue} className={isAnimated ? 'icon-pulse' : ''} style={{ opacity: 0.8 }}/>
     {/* Pins */}
     {[12, 24, 36].map(x => [12, 36].map(y => (
       <rect key={`p-${x}-${y}`} x={x-2} y={y-2} width="4" height="4" fill={THEME.copperDark} opacity="0.6"/>
@@ -44,7 +85,7 @@ export const AnimatedGPU: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated
     {[14, 34].map(cx => (
       <g key={cx}>
         <circle cx={cx} cy="24" r="7" fill={THEME.bgSecondary} stroke={THEME.border}/>
-        <g style={isAnimated ? {transformOrigin: `${cx}px 24px`, animation: 'spin 3s linear infinite'} : undefined}>
+        <g className={isAnimated ? 'icon-spin' : ''} style={{ transformOrigin: `${cx}px 24px` }}>
           {[0, 90, 180, 270].map(deg => (
             <path key={deg} d={`M${cx} 24 C${cx+3} 20, ${cx+5} 22, ${cx} 24`} fill={THEME.textSecondary} transform={`rotate(${deg} ${cx} 24)`}/>
           ))}
@@ -52,9 +93,7 @@ export const AnimatedGPU: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated
       </g>
     ))}
     {/* Power LED */}
-    <circle cx="42" cy="18" r="1.5" fill={THEME.blue}>
-      {isAnimated && <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>}
-    </circle>
+    <circle cx="42" cy="18" r="1.5" fill={THEME.blue} className={isAnimated ? 'icon-blink' : ''}/>
   </svg>
 );
 
@@ -63,9 +102,7 @@ export const AnimatedRAM: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
     <rect x="2" y="18" width="44" height="12" rx="1" fill={THEME.bgSecondary} stroke={THEME.border}/>
     {/* Heat spreader with RGB effect */}
-    <rect x="4" y="16" width="40" height="3" rx="0.5" fill={THEME.blue}>
-      {isAnimated && <animate attributeName="fill" values="#3b82f6;#9333ea;#3b82f6" dur="3s" repeatCount="indefinite"/>}
-    </rect>
+    <rect x="4" y="16" width="40" height="3" rx="0.5" fill={THEME.blue} className={isAnimated ? 'icon-rgb' : ''}/>
     {/* Chips */}
     {[8, 16, 24, 32, 40].map(x => (
       <rect key={x} x={x} y="20" width="5" height="6" rx="0.5" fill={THEME.bgTertiary} stroke={THEME.border} strokeWidth="0.5"/>
@@ -81,14 +118,12 @@ export const AnimatedSSD: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated
     <rect x="4" y="16" width="40" height="16" rx="1" fill={THEME.bgTertiary} stroke={THEME.border}/>
     {/* Controller */}
     <rect x="32" y="20" width="6" height="8" rx="0.5" fill={THEME.bgSecondary} stroke={THEME.blue} strokeWidth="0.5"/>
-    {/* Memory chips */}
+    {/* Memory chips with data flow animation */}
     {[8, 16, 24].map((x, i) => (
       <g key={x}>
         <rect x={x} y="19" width="6" height="10" rx="0.5" fill={THEME.bgSecondary} stroke={THEME.border} strokeWidth="0.5"/>
         {isAnimated && (
-          <rect x={x+1} y={20} width="1" height="1" fill={THEME.blue}>
-            <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin={`${i * 0.3}s`} repeatCount="indefinite"/>
-          </rect>
+          <rect x={x+1} y={20} width="1" height="1" fill={THEME.blue} className="icon-data-flow" style={{ animationDelay: `${i * 0.3}s` }}/>
         )}
       </g>
     ))}
@@ -103,14 +138,12 @@ export const AnimatedMotherboard: React.FC<AnimatedIconProps> = ({ size = 48, is
     <rect x="4" y="4" width="40" height="40" rx="2" fill={THEME.bgSecondary} stroke={THEME.border} strokeWidth="1.5"/>
     {/* CPU Socket */}
     <rect x="14" y="12" width="12" height="12" fill={THEME.bgTertiary} stroke={THEME.border}/>
-    {/* RAM Slots */}
+    {/* RAM Slots with activity animation */}
     {[32, 36, 40].map((x, i) => (
       <g key={x}>
         <rect x={x} y="10" width="2" height="20" rx="0.5" fill={THEME.bgTertiary} stroke={THEME.blue} strokeWidth="0.5"/>
         {isAnimated && (
-          <rect x={x} y="12" width="2" height="1" fill={THEME.blue} opacity="0.5">
-            <animate attributeName="opacity" values="0.2;0.8;0.2" dur="2s" begin={`${i * 0.2}s`} repeatCount="indefinite"/>
-          </rect>
+          <rect x={x} y="12" width="2" height="1" fill={THEME.blue} className="icon-glow" style={{ animationDelay: `${i * 0.2}s` }}/>
         )}
       </g>
     ))}
@@ -128,7 +161,7 @@ export const AnimatedPSU: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated
     <rect x="4" y="8" width="40" height="32" rx="2" fill={THEME.bgSecondary} stroke={THEME.border}/>
     {/* Fan */}
     <circle cx="24" cy="24" r="12" fill={THEME.bgTertiary} stroke={THEME.border}/>
-    <g style={isAnimated ? {transformOrigin: '24px 24px', animation: 'spin 4s linear infinite'} : undefined}>
+    <g className={isAnimated ? 'icon-spin-slow' : ''} style={{ transformOrigin: '24px 24px' }}>
       <path d="M24 24 L24 12 M24 24 L36 24 M24 24 L24 36 M24 24 L12 24" stroke={THEME.textSecondary} strokeWidth="3" opacity="0.5"/>
       <circle cx="24" cy="24" r="2" fill={THEME.blue}/>
     </g>
@@ -142,7 +175,7 @@ export const AnimatedFan: React.FC<AnimatedIconProps> = ({ size = 48, isAnimated
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
     <rect x="4" y="4" width="40" height="40" rx="4" fill={THEME.bgSecondary} stroke={THEME.border} strokeWidth="1.5"/>
     <circle cx="24" cy="24" r="18" fill={THEME.bgTertiary} stroke={THEME.border}/>
-    <g style={isAnimated ? {transformOrigin: '24px 24px', animation: 'spin 1.5s linear infinite'} : undefined}>
+    <g className={isAnimated ? 'icon-spin-fast' : ''} style={{ transformOrigin: '24px 24px' }}>
       {[0, 60, 120, 180, 240, 300].map(deg => (
         <path key={deg} d="M24 24 C30 18, 32 24, 24 30" fill={THEME.textSecondary} transform={`rotate(${deg} 24 24)`}/>
       ))}
@@ -160,9 +193,7 @@ export const AnimatedCase: React.FC<AnimatedIconProps> = ({ size = 48, isAnimate
     <rect x="10" y="8" width="26" height="28" rx="1" fill={THEME.bgTertiary} stroke={THEME.blue} strokeWidth="0.5" opacity="0.4"/>
     {/* RGB strip */}
     {isAnimated && (
-      <path d="M12 8 V36" stroke={THEME.blue} strokeWidth="1.5" strokeLinecap="round" opacity="0.6">
-        <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3s" repeatCount="indefinite"/>
-      </path>
+      <path d="M12 8 V36" stroke={THEME.blue} strokeWidth="1.5" strokeLinecap="round" className="icon-glow" style={{ opacity: 0.6 }}/>
     )}
     {/* Front I/O */}
     <circle cx="38" cy="10" r="1" fill={THEME.blue}/>
