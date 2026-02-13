@@ -14,6 +14,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Timeout wrapper for async operations
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error('Operation timed out')), ms)
+    )
+  ]);
+};
+
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -28,40 +38,75 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+    let mounted = true;
 
-      if (currentUser) {
-        const isUserAdmin = await verifyAdminStatus(currentUser.id);
-        setIsAdmin(isUserAdmin);
+    // Get initial session with timeout
+    const initSession = async () => {
+      try {
+        if (!supabase) {
+          if (mounted) setIsLoading(false);
+          return;
+        }
+        
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          10000 // 10 second timeout
+        );
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          const isUserAdmin = await verifyAdminStatus(currentUser.id);
+          if (mounted) setIsAdmin(isUserAdmin);
+        }
+
+        if (mounted) setIsLoading(false);
+      } catch (error) {
+        console.error('Session init error:', error);
+        if (mounted) setIsLoading(false);
       }
+    };
 
-      setIsLoading(false);
-    });
+    initSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
+        
         setSession(session);
         const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         // Check admin status when session changes
         if (currentUser) {
-          setIsLoading(true); // Re-validate admin status
-          const isUserAdmin = await verifyAdminStatus(currentUser.id);
-          setIsAdmin(isUserAdmin);
-          setIsLoading(false);
+          setIsLoading(true);
+          try {
+            const isUserAdmin = await withTimeout(
+              verifyAdminStatus(currentUser.id),
+              5000 // 5 second timeout for admin check
+            );
+            if (mounted) setIsAdmin(isUserAdmin);
+          } catch (error) {
+            console.error('Admin verification error:', error);
+            // Keep existing admin status on error
+          }
+          if (mounted) setIsLoading(false);
         } else {
           setIsAdmin(false);
+          setIsLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Internal verification function

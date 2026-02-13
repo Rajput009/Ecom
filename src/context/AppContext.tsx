@@ -161,10 +161,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const initData = async () => {
       try {
         setIsLoading(true);
-        await Promise.all([
+        // Use Promise.allSettled to handle partial failures
+        const results = await Promise.allSettled([
           refreshProducts(),
           refreshCategories()
         ]);
+        
+        // Log any failures but don't crash
+        results.forEach((result, i) => {
+          if (result.status === 'rejected') {
+            console.error(`Failed to load ${i === 0 ? 'products' : 'categories'}:`, result.reason);
+          }
+        });
       } catch (error) {
         console.error('Failed to initialize app:', error);
       } finally {
