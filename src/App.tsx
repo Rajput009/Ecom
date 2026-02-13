@@ -15,6 +15,7 @@ const RepairPage = lazy(() => import('./pages/RepairPage').then(m => ({ default:
 const TrackRepair = lazy(() => import('./pages/TrackRepair').then(m => ({ default: m.TrackRepair })));
 const AdminLogin = lazy(() => import('./pages/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const AdminPanel = lazy(() => import('./pages/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const CustomerAuthPage = lazy(() => import('./pages/CustomerAuthPage').then(m => ({ default: m.CustomerAuthPage })));
 
 // Global Loading Component
 function PageLoader() {
@@ -64,6 +65,7 @@ function CustomerLayout() {
           <Route path="/pc-builder" element={<PCBuilderPage />} />
           <Route path="/repair" element={<RepairPage />} />
           <Route path="/track-repair" element={<TrackRepair />} />
+          <Route path="/auth" element={<CustomerAuthPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

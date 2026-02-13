@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Cpu, Menu, X, Search, ArrowRight } from 'lucide-react';
+import { ShoppingCart, Cpu, Menu, X, Search, User, LogOut, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useSupabaseAuth } from '../context/SupabaseAuthContext';
 import { cn } from '../utils/cn';
 import { Category, Product } from '../types';
 import { generateSlug } from '../utils/seo';
@@ -75,7 +76,10 @@ export const Header = memo(function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { cartCount, addToCart, categories, products } = useApp();
+  const { user, isAdmin, signOut } = useSupabaseAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -89,7 +93,25 @@ export const Header = memo(function Header() {
     setIsMenuOpen(false);
     setIsSearchOpen(false);
     setSearchQuery('');
+    setIsUserMenuOpen(false);
   }, [location.pathname]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+    setIsUserMenuOpen(false);
+    navigate('/');
+  };
 
   const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
@@ -143,6 +165,59 @@ export const Header = memo(function Header() {
                 <ShoppingCart className="w-4 h-4" />
                 <span className="font-mono text-sm font-bold">{cartCount}</span>
               </Link>
+              
+              {/* User Menu */}
+              {user ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center gap-2 h-11 px-4 bg-[#111113] border border-[#27272a] rounded-xl text-white hover:border-[#3b82f6] transition-all"
+                  >
+                    <div className="w-6 h-6 bg-[#3b82f6] rounded-full flex items-center justify-center">
+                      <User className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className="hidden sm:block text-xs font-medium max-w-[100px] truncate">
+                      {user.email?.split('@')[0]}
+                    </span>
+                    <ChevronDown className={cn("w-3.5 h-3.5 text-[#71717a] transition-transform", isUserMenuOpen && "rotate-180")} />
+                  </button>
+                  
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-[#111113] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50">
+                      <div className="px-4 py-3 border-b border-[#27272a]">
+                        <p className="text-xs text-[#71717a]">Signed in as</p>
+                        <p className="text-sm text-white truncate">{user.email}</p>
+                      </div>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-sm text-[#3b82f6] hover:bg-[#18181b] transition-colors"
+                        >
+                          <Cpu className="w-4 h-4" />
+                          Admin Panel
+                        </Link>
+                      )}
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-red-400 hover:bg-[#18181b] transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="flex items-center gap-2 h-11 px-4 bg-[#111113] border border-[#27272a] rounded-xl text-[#71717a] hover:text-white hover:border-[#3b82f6] transition-all"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:block text-xs font-medium">Sign In</span>
+                </Link>
+              )}
+              
               <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden w-11 h-11 flex items-center justify-center rounded-xl text-[#71717a] hover:text-white hover:bg-[#111113] border border-[#27272a] transition-all">{isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
             </div>
           </div>
@@ -154,6 +229,26 @@ export const Header = memo(function Header() {
               {navLinks.map(({ to, label }) => (
                 <Link key={to} to={to} onClick={() => setIsMenuOpen(false)} className={cn("block px-5 py-4 text-xs font-bold uppercase tracking-[0.2em] rounded-xl", isActive(to) ? "bg-[#3b82f6] text-white" : "text-[#71717a] bg-[#111113]")}>{label}</Link>
               ))}
+              {/* Mobile user menu */}
+              {user ? (
+                <>
+                  <div className="px-5 py-3 text-xs text-[#71717a] border-t border-[#27272a] mt-2 pt-4">
+                    Signed in as <span className="text-white">{user.email}</span>
+                  </div>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="block px-5 py-4 text-xs font-bold uppercase tracking-[0.2em] rounded-xl text-[#3b82f6] bg-[#111113]">
+                      Admin Panel
+                    </Link>
+                  )}
+                  <button onClick={handleSignOut} className="block w-full text-left px-5 py-4 text-xs font-bold uppercase tracking-[0.2em] rounded-xl text-red-400 bg-[#111113]">
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <Link to="/auth" onClick={() => setIsMenuOpen(false)} className="block px-5 py-4 text-xs font-bold uppercase tracking-[0.2em] rounded-xl text-white bg-[#3b82f6]">
+                  Sign In / Sign Up
+                </Link>
+              )}
             </nav>
           </div>
         )}

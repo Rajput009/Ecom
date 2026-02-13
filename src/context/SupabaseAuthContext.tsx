@@ -8,6 +8,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null; data: { user: User | null; session: Session | null } | null }>;
   signOut: () => Promise<void>;
   checkAdminStatus: () => Promise<boolean>;
 }
@@ -260,6 +261,34 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Sign up new customer
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase not configured'), data: null };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: fullName
+          ? {
+              data: {
+                full_name: fullName,
+              },
+            }
+          : undefined,
+      });
+
+      return { 
+        error, 
+        data: data ? { user: data.user, session: data.session } : null 
+      };
+    } catch (error) {
+      return { error: error as Error, data: null };
+    }
+  };
+
   // Sign out
   const signOut = async () => {
     if (supabase) {
@@ -277,6 +306,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isLoading,
         signIn,
+        signUp,
         signOut,
         checkAdminStatus: async () => (user ? resolveAdminStatus(user.id) : false),
       }}

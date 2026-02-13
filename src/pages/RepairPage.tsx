@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Wrench, Smartphone, Monitor, Tablet, CheckCircle, Clock,
   Shield, ArrowRight, ChevronDown, Phone, MapPin, Star,
@@ -8,6 +9,8 @@ import {
 import { cn } from '../utils/cn';
 import { Footer } from '../components/Footer';
 import { useApp } from '../context/AppContext';
+import { useSupabaseAuth } from '../context/SupabaseAuthContext';
+import { db } from '../services/database';
 import { SEO } from '../components/SEO';
 import type { DeviceType } from '../types';
 
@@ -46,6 +49,8 @@ const brands = [
 
 export function RepairPage() {
   const { addRepairRequest } = useApp();
+  const { user } = useSupabaseAuth();
+  const navigate = useNavigate();
   const [activeDevice, setActiveDevice] = useState('mobile');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [formData, setFormData] = useState({
@@ -53,6 +58,8 @@ export function RepairPage() {
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [submittedId, setSubmittedId] = useState<string>('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const faqs = [
     { q: 'How long does a typical screen repair take?', a: 'Most screen repairs are completed within 30-60 minutes. Walk-in repairs are welcome and usually done while you wait.' },
@@ -91,19 +98,46 @@ export function RepairPage() {
     ]
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const customerId = `cust-${formData.phone.replace(/\D/g, '')}`;
-    const repair = addRepairRequest({
-      customer_id: customerId,
-      device_brand: formData.brand,
-      device_model: formData.device,
-      device_type: activeDevice as DeviceType,
-      issue: formData.issue,
-      service_type: formData.serviceType || 'General Repair',
-    });
-    setSubmittedId((repair as any).repair_id);
-    setFormSubmitted(true);
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      if (!user) {
+        navigate('/auth', { state: { from: { pathname: '/repair' } } });
+        return;
+      }
+
+      const normalizedPhone = formData.phone.trim();
+      let customer = await db.getCustomerByPhone(normalizedPhone);
+
+      if (!customer) {
+        customer = await db.addCustomer({
+          name: formData.name.trim(),
+          email: user.email || undefined,
+          phone: normalizedPhone,
+          address: '',
+        });
+      }
+
+      const repair = await addRepairRequest({
+        customer_id: customer.id,
+        device_brand: formData.brand,
+        device_model: formData.device,
+        device_type: activeDevice as DeviceType,
+        issue: formData.issue,
+        service_type: formData.serviceType || 'General Repair',
+        status: 'received',
+      });
+
+      setSubmittedId(repair.repair_id);
+      setFormSubmitted(true);
+    } catch (error) {
+      setSubmitError('Unable to submit repair request. Please sign in and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -211,6 +245,11 @@ export function RepairPage() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <h2 className="text-2xl font-bold text-white mb-8">Service Intake Form</h2>
+                  {submitError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                      <p className="text-red-400 text-sm font-mono">{submitError}</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <input type="text" placeholder="FULL_NAME" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
                     <input type="tel" placeholder="PHONE_ID" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
@@ -220,7 +259,18 @@ export function RepairPage() {
                     <input type="text" placeholder="MODEL" required value={formData.device} onChange={(e) => setFormData({ ...formData, device: e.target.value })} className="bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
                   </div>
                   <textarea placeholder="DESCRIBE_SYSTEM_GLITCH..." rows={4} required value={formData.issue} onChange={(e) => setFormData({ ...formData, issue: e.target.value })} className="w-full bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs resize-none" />
-                  <button type="submit" className="w-full py-4 bg-[#3b82f6] text-white font-bold rounded-2xl hover:bg-[#2563eb] transition-all uppercase text-xs tracking-[0.2em]">Deploy Repair Request</button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={cn(
+                      "w-full py-4 font-bold rounded-2xl transition-all uppercase text-xs tracking-[0.2em]",
+                      isSubmitting
+                        ? "bg-[#27272a] text-[#71717a] cursor-not-allowed"
+                        : "bg-[#3b82f6] text-white hover:bg-[#2563eb]"
+                    )}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Deploy Repair Request'}
+                  </button>
                 </form>
               )}
             </div>

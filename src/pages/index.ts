@@ -7,3 +7,4 @@ export { RepairPage } from './RepairPage';
 export { AdminPanel } from './AdminPanel';
 export { AdminLogin } from './AdminLogin';
 export { TrackRepair } from './TrackRepair';
+export { CustomerAuthPage } from './CustomerAuthPage';

@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, CreditCard, Truck, Shield, CheckCircle } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, CreditCard, CheckCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useSupabaseAuth } from '../context/SupabaseAuthContext';
+import { db } from '../services/database';
 import { SEO } from '../components/SEO';
 
 export function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, clearCart, addOrder } = useApp();
+  const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useApp();
+  const { user } = useSupabaseAuth();
   const [showCheckout, setShowCheckout] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,24 +27,37 @@ export function CartPage() {
   const tax = cartTotal * 0.08;
   const total = cartTotal + shipping + tax;
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString();
-    const order = {
-      id: `ord-${Date.now().toString(36)}`,
-      order_number: `ORD-${Date.now().toString(36).toUpperCase()}`,
-      customer_id: `cust-${formData.phone.replace(/\D/g, '')}`,
-      total,
-      shipping_cost: shipping,
-      tax,
-      status: 'pending' as const,
-      payment_status: 'pending' as const,
-      created_at: now,
-      updated_at: now,
-    };
-    addOrder(order);
-    clearCart();
-    setOrderPlaced(true);
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      if (!user) {
+        setSubmitError('Please sign in before placing an order.');
+        return;
+      }
+
+      const order = await db.createCompleteOrder(
+        {
+          name: formData.name.trim(),
+          email: formData.email.trim() || user.email || undefined,
+          phone: formData.phone.trim(),
+          address: `${formData.address.trim()}, ${formData.city.trim()} ${formData.zip.trim()}`.trim(),
+        },
+        cart,
+        shipping,
+        tax
+      );
+
+      setOrderNumber(order.order_number);
+      clearCart();
+      setOrderPlaced(true);
+    } catch {
+      setSubmitError('Unable to place order. Please check your details and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (orderPlaced) {
@@ -53,6 +72,11 @@ export function CartPage() {
           <p className="text-[#a1a1aa] mb-8 font-mono text-sm uppercase tracking-wider">
             SYSTEM_TX_SUCCESS: CONFIRMATION_SENT
           </p>
+          {orderNumber && (
+            <p className="text-[#3b82f6] mb-8 font-mono text-xs uppercase tracking-widest">
+              ORDER_ID: {orderNumber}
+            </p>
+          )}
           <Link
             to="/products"
             className="inline-flex items-center gap-2 px-8 py-4 bg-[#3b82f6] text-white font-bold rounded-xl hover:bg-[#2563eb] transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] uppercase text-xs tracking-widest"
@@ -156,6 +180,11 @@ export function CartPage() {
                     <button type="button" onClick={() => setShowCheckout(false)} className="p-2 hover:bg-[#18181b] rounded-xl text-white transition-colors"><ArrowLeft className="w-4 h-4" /></button>
                     <h2 className="text-sm font-bold text-white font-mono uppercase tracking-widest">Secure Checkout</h2>
                   </div>
+                  {submitError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                      <p className="text-red-400 text-sm font-mono">{submitError}</p>
+                    </div>
+                  )}
                   {['name', 'email', 'phone', 'address'].map(f => (
                     <input key={f} type={f === 'email' ? 'email' : f === 'phone' ? 'tel' : 'text'} placeholder={f.toUpperCase()} required value={(formData as any)[f]} onChange={(e) => setFormData({ ...formData, [f]: e.target.value })} className="w-full px-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-white focus:outline-none focus:border-[#3b82f6] font-mono text-xs" />
                   ))}
@@ -165,7 +194,11 @@ export function CartPage() {
                   </div>
                   <div className="h-px bg-[#27272a] my-6"></div>
                   <div className="flex justify-between font-bold text-white mb-8"><span className="font-mono text-xs">FINAL_TOTAL</span><span className="text-xl font-mono text-[#3b82f6]">${total.toFixed(2)}</span></div>
-                  <button type="submit" className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#22c55e] text-white font-bold rounded-2xl hover:bg-[#16a34a] transition-all hover:shadow-[0_0_30px_rgba(34,197,94,0.3)] uppercase text-xs tracking-widest">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#22c55e] text-white font-bold rounded-2xl hover:bg-[#16a34a] transition-all hover:shadow-[0_0_30px_rgba(34,197,94,0.3)] uppercase text-xs tracking-widest disabled:bg-[#27272a] disabled:text-[#71717a] disabled:shadow-none disabled:cursor-not-allowed"
+                  >
                     <CreditCard className="w-5 h-5" /> Place Order
                   </button>
                 </form>
