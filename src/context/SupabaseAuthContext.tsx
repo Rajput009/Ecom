@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+﻿import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../services/database';
-import { Session, User } from '@supabase/supabase-js';
+import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   session: Session | null;
@@ -18,6 +18,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ADMIN_CACHE_KEY = 'zulfiqar_admin_cache';
 const ADMIN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+const SESSION_TIMEOUT_MS = 15000;
+const ADMIN_VERIFY_TIMEOUT_MS = 10000;
+
 interface AdminCache {
   userId: string;
   isAdmin: boolean;
@@ -25,13 +28,21 @@ interface AdminCache {
 }
 
 // Timeout wrapper for async operations
-const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => 
-      setTimeout(() => reject(new Error('Operation timed out')), ms)
-    )
-  ]);
+const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Operation timed out')), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 };
 
 // Get cached admin status
@@ -39,11 +50,11 @@ const getCachedAdminStatus = (userId: string): boolean | null => {
   try {
     const cached = localStorage.getItem(ADMIN_CACHE_KEY);
     if (!cached) return null;
-    
+
     const data: AdminCache = JSON.parse(cached);
     if (data.userId !== userId) return null;
     if (Date.now() - data.timestamp > ADMIN_CACHE_DURATION) return null;
-    
+
     return data.isAdmin;
   } catch {
     return null;
@@ -64,16 +75,67 @@ const setCachedAdminStatus = (userId: string, isAdmin: boolean) => {
   }
 };
 
+const clearCachedAdminStatus = () => {
+  try {
+    localStorage.removeItem(ADMIN_CACHE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Internal verification function with retry
+  const verifyAdminStatus = async (userId: string, retries = 1): Promise<boolean> => {
+    if (!supabase) return false;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('admin_users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        return !!data;
+      } catch {
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 750 * (attempt + 1)));
+        }
+      }
+    }
+
+    return false;
+  };
+
+  const resolveAdminStatus = async (userId: string): Promise<boolean> => {
+    const cachedStatus = getCachedAdminStatus(userId);
+    if (cachedStatus !== null) {
+      return cachedStatus;
+    }
+
+    const isUserAdmin = await withTimeout(
+      verifyAdminStatus(userId),
+      ADMIN_VERIFY_TIMEOUT_MS
+    );
+
+    setCachedAdminStatus(userId, isUserAdmin);
+    return isUserAdmin;
+  };
 
   // Listen for auth changes
   useEffect(() => {
-    if (!supabase) {
+    const client = supabase;
+
+    if (!client) {
       setIsLoading(false);
       return;
     }
@@ -83,127 +145,102 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     // Get initial session with timeout
     const initSession = async () => {
       try {
-        if (!supabase) {
-          if (mounted) setIsLoading(false);
-          return;
-        }
-        
-        const { data: { session } } = await withTimeout(
-          supabase.auth.getSession(),
-          15000 // 15 second timeout for initial session
-        );
-        
+        const {
+          data: { session: initialSession },
+        } = await withTimeout(client.auth.getSession(), SESSION_TIMEOUT_MS);
+
         if (!mounted) return;
-        
-        setSession(session);
-        const currentUser = session?.user ?? null;
+
+        setSession(initialSession);
+        const currentUser = initialSession?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
-          // Check cache first
-          const cachedStatus = getCachedAdminStatus(currentUser.id);
-          if (cachedStatus !== null) {
-            setIsAdmin(cachedStatus);
-          } else {
-            // Verify with backend
-            const isUserAdmin = await verifyAdminStatus(currentUser.id);
+          try {
+            const isUserAdmin = await resolveAdminStatus(currentUser.id);
             if (mounted) {
               setIsAdmin(isUserAdmin);
-              setCachedAdminStatus(currentUser.id, isUserAdmin);
             }
+          } catch (error) {
+            if (mounted) {
+              setIsAdmin(false);
+            }
+            console.error('Admin verification error:', error);
           }
+        } else {
+          setIsAdmin(false);
         }
-
-        if (mounted) setIsLoading(false);
-      } catch (error) {
-        // Silently handle session init errors
-        if (mounted) setIsLoading(false);
+      } catch {
+        if (mounted) {
+          setIsAdmin(false);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     initSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) return;
-        
-        setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((event: AuthChangeEvent, nextSession: Session | null) => {
+      if (!mounted) return;
 
-        // Check admin status when session changes
-        if (currentUser) {
-          // Check cache first to avoid unnecessary API calls
-          const cachedStatus = getCachedAdminStatus(currentUser.id);
-          if (cachedStatus !== null) {
-            setIsAdmin(cachedStatus);
-            setIsLoading(false);
-            return;
-          }
-          
-          setIsLoading(true);
+      setSession(nextSession);
+      const currentUser = nextSession?.user ?? null;
+      setUser(currentUser);
+
+      if (!currentUser || event === 'SIGNED_OUT') {
+        setIsAdmin(false);
+        setIsLoading(false);
+        clearCachedAdminStatus();
+        return;
+      }
+
+      // Avoid extra admin table reads on token refresh while preserving current state.
+      if (event === 'TOKEN_REFRESHED') {
+        const cachedStatus = getCachedAdminStatus(currentUser.id);
+        if (cachedStatus !== null) {
+          setIsAdmin(cachedStatus);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+
+      // Defer async Supabase calls outside auth callback to avoid lock/timeouts.
+      setTimeout(() => {
+        if (!mounted) return;
+
+        void (async () => {
           try {
-            const isUserAdmin = await withTimeout(
-              verifyAdminStatus(currentUser.id),
-              15000 // 15 second timeout
-            );
+            const isUserAdmin = await resolveAdminStatus(currentUser.id);
             if (mounted) {
               setIsAdmin(isUserAdmin);
-              setCachedAdminStatus(currentUser.id, isUserAdmin);
             }
-          } catch {
-            // On timeout/error, don't change admin status
-            // User can retry by refreshing
+          } catch (error) {
+            if (mounted) {
+              setIsAdmin(false);
+            }
+            console.error('Admin verification error:', error);
+          } finally {
+            if (mounted) {
+              setIsLoading(false);
+            }
           }
-          if (mounted) setIsLoading(false);
-        } else {
-          setIsAdmin(false);
-          setIsLoading(false);
-        }
-      }
-    );
+        })();
+      }, 0);
+    });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
   }, []);
-
-  // Internal verification function with retry
-  const verifyAdminStatus = async (userId: string, retries = 2): Promise<boolean> => {
-    if (!supabase) return false;
-
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const { data, error } = await supabase
-          .from('admin_users')
-          .select('role')
-          .eq('id', userId)
-          .single();
-
-        if (!error && !!data) {
-          return true;
-        }
-        
-        // If no data found, user is not an admin
-        if (error?.code === 'PGRST116') {
-          return false;
-        }
-        
-        // For other errors, retry
-        if (attempt < retries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-        }
-      } catch {
-        if (attempt < retries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-        }
-      }
-    }
-    
-    return false;
-  };
 
   // Sign in with email/password
   const signIn = async (email: string, password: string) => {
@@ -229,12 +266,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
     }
     setIsAdmin(false);
-    // Clear admin cache on sign out
-    try {
-      localStorage.removeItem(ADMIN_CACHE_KEY);
-    } catch {
-      // Ignore
-    }
+    clearCachedAdminStatus();
   };
 
   return (
@@ -246,7 +278,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         signIn,
         signOut,
-        checkAdminStatus: async () => user ? verifyAdminStatus(user.id) : false,
+        checkAdminStatus: async () => (user ? resolveAdminStatus(user.id) : false),
       }}
     >
       {children}
