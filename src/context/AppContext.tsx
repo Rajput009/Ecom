@@ -1,6 +1,17 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { CartItem, Product, PCBuild, Order, RepairRequest, Category, RepairStatus, Customer } from '../types';
 import { db } from '../services/database';
+
+// Cache duration in milliseconds (30 seconds)
+const CACHE_DURATION = 30 * 1000;
+
+interface CacheTimestamps {
+  products: number;
+  categories: number;
+  orders: number;
+  repairRequests: number;
+  customers: number;
+}
 
 interface AppContextType {
   // Cart
@@ -18,26 +29,26 @@ interface AppContextType {
 
   // Orders
   orders: Order[];
-  refreshOrders: () => Promise<void>;
+  refreshOrders: (force?: boolean) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
 
   // Products
   products: Product[];
-  refreshProducts: () => Promise<void>;
+  refreshProducts: (force?: boolean) => Promise<void>;
   addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews' | 'created_at' | 'updated_at'>) => Promise<Product>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
 
   // Categories
   categories: Category[];
-  refreshCategories: () => Promise<void>;
+  refreshCategories: (force?: boolean) => Promise<void>;
   addCategory: (name: string, icon?: string) => Promise<void>;
   updateCategory: (categoryId: string, name: string, icon?: string) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
 
   // Repair Requests
   repairRequests: RepairRequest[];
-  refreshRepairRequests: () => Promise<void>;
+  refreshRepairRequests: (force?: boolean) => Promise<void>;
   addRepairRequest: (request: Omit<RepairRequest, 'id' | 'repair_id' | 'created_at' | 'updated_at' | 'notified_customer'>) => Promise<RepairRequest>;
   updateRepairStatus: (requestId: string, status: RepairStatus) => Promise<void>;
   updateRepairRequest: (requestId: string, updates: Partial<RepairRequest>) => Promise<void>;
@@ -45,7 +56,7 @@ interface AppContextType {
 
   // Customers
   customers: Customer[];
-  refreshCustomers: () => Promise<void>;
+  refreshCustomers: (force?: boolean) => Promise<void>;
 
   // States
   isLoading: boolean;
@@ -75,6 +86,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Cache timestamps using useRef to persist across renders without triggering re-renders
+  const cacheTimestamps = useRef<CacheTimestamps>({
+    products: 0,
+    categories: 0,
+    orders: 0,
+    repairRequests: 0,
+    customers: 0,
+  });
+
+  // Helper to check if cache is valid
+  const isCacheValid = (key: keyof CacheTimestamps): boolean => {
+    const timestamp = cacheTimestamps.current[key];
+    if (!timestamp) return false;
+    return Date.now() - timestamp < CACHE_DURATION;
+  };
+
   // Persistence
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
@@ -84,31 +111,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.PC_BUILD, JSON.stringify(pcBuild));
   }, [pcBuild]);
 
-  // Data Fetching
-  const refreshProducts = useCallback(async () => {
+  // Data Fetching with Cache
+  const refreshProducts = useCallback(async (force: boolean = false) => {
+    if (!force && isCacheValid('products') && products.length > 0) {
+      return; // Use cached data
+    }
     const data = await db.getProducts();
     setProducts(data);
-  }, []);
+    cacheTimestamps.current.products = Date.now();
+  }, [products.length]);
 
-  const refreshCategories = useCallback(async () => {
+  const refreshCategories = useCallback(async (force: boolean = false) => {
+    if (!force && isCacheValid('categories') && categories.length > 0) {
+      return; // Use cached data
+    }
     const data = await db.getCategories();
     setCategories(data);
-  }, []);
+    cacheTimestamps.current.categories = Date.now();
+  }, [categories.length]);
 
-  const refreshOrders = useCallback(async () => {
+  const refreshOrders = useCallback(async (force: boolean = false) => {
+    if (!force && isCacheValid('orders') && orders.length > 0) {
+      return; // Use cached data
+    }
     const data = await db.getOrders();
     setOrders(data);
-  }, []);
+    cacheTimestamps.current.orders = Date.now();
+  }, [orders.length]);
 
-  const refreshRepairRequests = useCallback(async () => {
+  const refreshRepairRequests = useCallback(async (force: boolean = false) => {
+    if (!force && isCacheValid('repairRequests') && repairRequests.length > 0) {
+      return; // Use cached data
+    }
     const data = await db.getRepairRequests();
     setRepairRequests(data);
-  }, []);
+    cacheTimestamps.current.repairRequests = Date.now();
+  }, [repairRequests.length]);
 
-  const refreshCustomers = useCallback(async () => {
+  const refreshCustomers = useCallback(async (force: boolean = false) => {
+    if (!force && isCacheValid('customers') && customers.length > 0) {
+      return; // Use cached data
+    }
     const data = await db.getCustomers();
     setCustomers(data);
-  }, []);
+    cacheTimestamps.current.customers = Date.now();
+  }, [customers.length]);
 
   useEffect(() => {
     const initData = async () => {
@@ -127,69 +174,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
     initData();
   }, [refreshProducts, refreshCategories]);
 
-  // Product Actions
+  // Product Actions - Force refresh after mutations
   const addProduct = async (productData: Omit<Product, 'id' | 'rating' | 'reviews' | 'created_at' | 'updated_at'>) => {
     const newProduct = await db.addProduct(productData);
-    await refreshProducts();
-    await refreshCategories(); // Since product count might have changed
+    await refreshProducts(true); // Force refresh
+    await refreshCategories(true); // Since product count might have changed
     return newProduct;
   };
 
   const updateProduct = async (productId: string, updates: Partial<Product>) => {
     await db.updateProduct(productId, updates);
-    await refreshProducts();
-    await refreshCategories();
+    await refreshProducts(true);
+    await refreshCategories(true);
   };
 
   const deleteProduct = async (productId: string) => {
     await db.deleteProduct(productId);
-    await refreshProducts();
-    await refreshCategories();
+    await refreshProducts(true);
+    await refreshCategories(true);
   };
 
-  // Category Actions
+  // Category Actions - Force refresh after mutations
   const addCategory = async (name: string, icon?: string) => {
     await db.addCategory(name, icon);
-    await refreshCategories();
+    await refreshCategories(true);
   };
 
   const updateCategory = async (categoryId: string, name: string, icon?: string) => {
     await db.updateCategory(categoryId, name, icon);
-    await refreshCategories();
-    await refreshProducts(); // Category name might be shown in product list
+    await refreshCategories(true);
+    await refreshProducts(true); // Category name might be shown in product list
   };
 
   const deleteCategory = async (categoryId: string) => {
     await db.deleteCategory(categoryId);
-    await refreshCategories();
+    await refreshCategories(true);
   };
 
-  // Order Actions
+  // Order Actions - Force refresh after mutations
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     await db.updateOrderStatus(orderId, status);
-    await refreshOrders();
+    await refreshOrders(true);
   };
 
-  // Repair Actions
+  // Repair Actions - Force refresh after mutations
   const addRepairRequest = async (request: Omit<RepairRequest, 'id' | 'repair_id' | 'created_at' | 'updated_at' | 'notified_customer'>) => {
     const newRequest = await db.addRepairRequest(request);
-    await refreshRepairRequests();
+    await refreshRepairRequests(true);
     return newRequest;
   };
 
   const updateRepairStatus = async (requestId: string, status: RepairStatus) => {
     await db.updateRepairStatus(requestId, status);
-    await refreshRepairRequests();
+    await refreshRepairRequests(true);
   };
 
   const updateRepairRequest = async (requestId: string, updates: Partial<RepairRequest>) => {
     await db.updateRepairRequest(requestId, updates);
-    await refreshRepairRequests();
+    await refreshRepairRequests(true);
   };
 
   const deleteRepairRequest = async (requestId: string) => {
     await db.deleteRepairRequest(requestId);
-    await refreshRepairRequests();
+    await refreshRepairRequests(true);
   };
 
   // Cart Functions
