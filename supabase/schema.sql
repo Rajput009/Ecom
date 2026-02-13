@@ -31,6 +31,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_categories_updated_at ON categories;
 CREATE TRIGGER update_categories_updated_at
     BEFORE UPDATE ON categories
     FOR EACH ROW
@@ -66,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_products_search ON products USING gin(to_tsvector('english', name || ' ' || COALESCE(description, '')));
 
 -- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON products
     FOR EACH ROW
@@ -80,6 +82,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS trg_category_count_insert ON products;
 CREATE TRIGGER trg_category_count_insert
     AFTER INSERT ON products
     FOR EACH ROW
@@ -94,6 +97,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS trg_category_count_delete ON products;
 CREATE TRIGGER trg_category_count_delete
     AFTER DELETE ON products
     FOR EACH ROW
@@ -111,6 +115,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS trg_category_count_update ON products;
 CREATE TRIGGER trg_category_count_update
     AFTER UPDATE OF category_id ON products
     FOR EACH ROW
@@ -135,6 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email) WHERE email I
 CREATE INDEX IF NOT EXISTS idx_customers_created_at ON customers(created_at DESC);
 
 -- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 CREATE TRIGGER update_customers_updated_at
     BEFORE UPDATE ON customers
     FOR EACH ROW
@@ -169,6 +175,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
 
 -- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 CREATE TRIGGER update_orders_updated_at
     BEFORE UPDATE ON orders
     FOR EACH ROW
@@ -185,6 +192,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS trg_order_completed_at ON orders;
 CREATE TRIGGER trg_order_completed_at
     BEFORE UPDATE OF status ON orders
     FOR EACH ROW
@@ -203,6 +211,7 @@ $$ language 'plpgsql';
 CREATE SEQUENCE IF NOT EXISTS order_number_seq START 1;
 
 -- Apply order number generation trigger
+DROP TRIGGER IF EXISTS trg_generate_order_number ON orders;
 CREATE TRIGGER trg_generate_order_number
     BEFORE INSERT ON orders
     FOR EACH ROW
@@ -228,8 +237,21 @@ CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)
 -- ============================================================================
 -- 6. REPAIR REQUESTS TABLE
 -- ============================================================================
-CREATE TYPE device_type AS ENUM ('mobile', 'tablet', 'laptop', 'desktop');
-CREATE TYPE repair_status AS ENUM ('received', 'diagnosing', 'waiting-parts', 'in-progress', 'completed', 'returned', 'cancelled');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'device_type') THEN
+        CREATE TYPE device_type AS ENUM ('mobile', 'tablet', 'laptop', 'desktop');
+    END IF;
+END
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'repair_status') THEN
+        CREATE TYPE repair_status AS ENUM ('received', 'diagnosing', 'waiting-parts', 'in-progress', 'completed', 'returned', 'cancelled');
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS repair_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -254,10 +276,11 @@ CREATE TABLE IF NOT EXISTS repair_requests (
 -- Create indexes for repair queries
 CREATE INDEX IF NOT EXISTS idx_repair_requests_customer_id ON repair_requests(customer_id);
 CREATE INDEX IF NOT EXISTS idx_repair_requests_status ON repair_requests(status);
-CREATE INDEX IF NOT EXISTS idx_repair_requests_phone ON repair_requests USING gin(to_tsvector('simple', repair_id));
+CREATE INDEX IF NOT EXISTS idx_repair_requests_repair_id ON repair_requests(repair_id);
 CREATE INDEX IF NOT EXISTS idx_repair_requests_created_at ON repair_requests(created_at DESC);
 
 -- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_repair_requests_updated_at ON repair_requests;
 CREATE TRIGGER update_repair_requests_updated_at
     BEFORE UPDATE ON repair_requests
     FOR EACH ROW
@@ -274,6 +297,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS trg_repair_completed_at ON repair_requests;
 CREATE TRIGGER trg_repair_completed_at
     BEFORE UPDATE OF status ON repair_requests
     FOR EACH ROW
@@ -289,6 +313,7 @@ END;
 $$ language 'plpgsql';
 
 -- Apply repair ID generation trigger
+DROP TRIGGER IF EXISTS trg_generate_repair_id ON repair_requests;
 CREATE TRIGGER trg_generate_repair_id
     BEFORE INSERT ON repair_requests
     FOR EACH ROW
@@ -298,6 +323,15 @@ CREATE TRIGGER trg_generate_repair_id
 -- 7. ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================================
 
+-- Admin users table used by policy checks
+CREATE TABLE IF NOT EXISTS public.admin_users (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'super_admin')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable RLS on all tables
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -305,75 +339,112 @@ ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE repair_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 
--- Categories: Allow all reads, restrict writes to authenticated users
-CREATE POLICY "Allow public read access to categories" ON categories
+-- Drop legacy policies to keep migration idempotent
+DROP POLICY IF EXISTS "Allow public read access to categories" ON categories;
+DROP POLICY IF EXISTS "Allow authenticated insert on categories" ON categories;
+DROP POLICY IF EXISTS "Allow authenticated update on categories" ON categories;
+DROP POLICY IF EXISTS "Allow authenticated delete on categories" ON categories;
+DROP POLICY IF EXISTS "Allow public read access to products" ON products;
+DROP POLICY IF EXISTS "Allow authenticated insert on products" ON products;
+DROP POLICY IF EXISTS "Allow authenticated update on products" ON products;
+DROP POLICY IF EXISTS "Allow authenticated delete on products" ON products;
+DROP POLICY IF EXISTS "Allow public read access to customers" ON customers;
+DROP POLICY IF EXISTS "Allow public read access to orders" ON orders;
+DROP POLICY IF EXISTS "Allow public read access to order_items" ON order_items;
+DROP POLICY IF EXISTS "Allow public read access to repair_requests" ON repair_requests;
+DROP POLICY IF EXISTS "Allow public insert on customers" ON customers;
+DROP POLICY IF EXISTS "Allow public insert on orders" ON orders;
+DROP POLICY IF EXISTS "Allow public insert on order_items" ON order_items;
+DROP POLICY IF EXISTS "Allow public insert on repair_requests" ON repair_requests;
+DROP POLICY IF EXISTS "Allow authenticated update on customers" ON customers;
+DROP POLICY IF EXISTS "Allow authenticated update on orders" ON orders;
+DROP POLICY IF EXISTS "Allow authenticated delete on orders" ON orders;
+DROP POLICY IF EXISTS "Allow authenticated update on order_items" ON order_items;
+DROP POLICY IF EXISTS "Allow authenticated update on repair_requests" ON repair_requests;
+DROP POLICY IF EXISTS "Admin users can view admin list" ON public.admin_users;
+DROP POLICY IF EXISTS "Super admin can manage admins" ON public.admin_users;
+
+-- Categories: public read, admin writes
+CREATE POLICY "Public can read categories" ON categories
     FOR SELECT USING (true);
 
-CREATE POLICY "Allow authenticated insert on categories" ON categories
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Admin can insert categories" ON categories
+    FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Allow authenticated update on categories" ON categories
-    FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can update categories" ON categories
+    FOR UPDATE USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Allow authenticated delete on categories" ON categories
-    FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can delete categories" ON categories
+    FOR DELETE USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
--- Products: Allow all reads, restrict writes to authenticated users
-CREATE POLICY "Allow public read access to products" ON products
+-- Products: public read, admin writes
+CREATE POLICY "Public can read products" ON products
     FOR SELECT USING (true);
 
-CREATE POLICY "Allow authenticated insert on products" ON products
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Admin can insert products" ON products
+    FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Allow authenticated update on products" ON products
-    FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can update products" ON products
+    FOR UPDATE USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Allow authenticated delete on products" ON products
-    FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can delete products" ON products
+    FOR DELETE USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
--- Customers: Allow all reads (for order/repair lookup), restrict writes
-CREATE POLICY "Allow public read access to customers" ON customers
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert on customers" ON customers
+-- Customers: public insert, no public reads; admin full access
+CREATE POLICY "Public can insert customers" ON customers
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated update on customers" ON customers
-    FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can manage customers" ON customers
+    FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
--- Orders: Allow all reads (for tracking), restrict writes to authenticated
-CREATE POLICY "Allow public read access to orders" ON orders
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert on orders" ON orders
+-- Orders: public insert, no public reads; admin full access
+CREATE POLICY "Public can insert orders" ON orders
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated update on orders" ON orders
-    FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can manage orders" ON orders
+    FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Allow authenticated delete on orders" ON orders
-    FOR DELETE USING (auth.role() = 'authenticated');
-
--- Order Items: Allow all reads, restrict writes
-CREATE POLICY "Allow public read access to order_items" ON order_items
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert on order_items" ON order_items
+-- Order items: public insert, no public reads; admin full access
+CREATE POLICY "Public can insert order_items" ON order_items
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated update on order_items" ON order_items
-    FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can manage order_items" ON order_items
+    FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
--- Repair Requests: Allow all reads (for tracking), restrict writes
-CREATE POLICY "Allow public read access to repair_requests" ON repair_requests
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow public insert on repair_requests" ON repair_requests
+-- Repair requests: public insert, no public reads; admin full access
+CREATE POLICY "Public can insert repair_requests" ON repair_requests
     FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated update on repair_requests" ON repair_requests
-    FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin can manage repair_requests" ON repair_requests
+    FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
+
+-- Admin users policies
+CREATE POLICY "Admin users can view admin list" ON public.admin_users
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid())
+    );
+
+CREATE POLICY "Super admin can manage admins" ON public.admin_users
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.admin_users au
+            WHERE au.id = auth.uid() AND au.role = 'super_admin'
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.admin_users au
+            WHERE au.id = auth.uid() AND au.role = 'super_admin'
+        )
+    );
 
 -- ============================================================================
 -- 8. UNCATEGORIZED CATEGORY (Fallback for deleted categories)
@@ -466,6 +537,78 @@ BEGIN
     WHERE o.id = order_uuid;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Secure procedure: Get order status by order number + customer phone
+CREATE OR REPLACE FUNCTION get_order_status(p_order_number TEXT, p_phone TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_order JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'order_number', o.order_number,
+        'status', o.status,
+        'total', o.total,
+        'tracking_number', o.tracking_number,
+        'created_at', o.created_at,
+        'updated_at', o.updated_at,
+        'completed_at', o.completed_at,
+        'customer_name', c.name
+    )
+    INTO v_order
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.id
+    WHERE o.order_number = p_order_number
+      AND c.phone = p_phone
+    LIMIT 1;
+
+    RETURN v_order;
+END;
+$$;
+
+-- Secure procedure: Get repair status by repair id + customer phone
+CREATE OR REPLACE FUNCTION get_repair_status(p_repair_id TEXT, p_phone TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_repair JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'repair_id', r.repair_id,
+        'device_brand', r.device_brand,
+        'device_model', r.device_model,
+        'status', r.status,
+        'issue', r.issue,
+        'service_type', r.service_type,
+        'notes', r.notes,
+        'estimated_cost', r.estimated_cost,
+        'final_cost', r.final_cost,
+        'created_at', r.created_at,
+        'updated_at', r.updated_at,
+        'completed_at', r.completed_at,
+        'customer_name', c.name
+    )
+    INTO v_repair
+    FROM repair_requests r
+    JOIN customers c ON r.customer_id = c.id
+    WHERE r.repair_id = p_repair_id
+      AND c.phone = p_phone
+    LIMIT 1;
+
+    RETURN v_repair;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION get_order_status(TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION get_repair_status(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION get_order_status(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION get_repair_status(TEXT, TEXT) TO anon, authenticated;
 
 -- ============================================================================
 -- END OF SCHEMA

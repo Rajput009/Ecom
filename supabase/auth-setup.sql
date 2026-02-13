@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.admin_users (
 ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 
 -- Create policy to allow admin users to view admin list
+DROP POLICY IF EXISTS "Admin users can view admin list" ON public.admin_users;
 CREATE POLICY "Admin users can view admin list" ON public.admin_users
     FOR SELECT USING (
         EXISTS (
@@ -26,10 +27,17 @@ CREATE POLICY "Admin users can view admin list" ON public.admin_users
     );
 
 -- Create policy to allow super_admin to manage admins
+DROP POLICY IF EXISTS "Super admin can manage admins" ON public.admin_users;
 CREATE POLICY "Super admin can manage admins" ON public.admin_users
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM public.admin_users 
+            WHERE id = auth.uid() AND role = 'super_admin'
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.admin_users
             WHERE id = auth.uid() AND role = 'super_admin'
         )
     );
@@ -86,6 +94,9 @@ ON CONFLICT (id) DO NOTHING;
 DROP POLICY IF EXISTS "Allow authenticated insert on products" ON products;
 DROP POLICY IF EXISTS "Allow authenticated update on products" ON products;
 DROP POLICY IF EXISTS "Allow authenticated delete on products" ON products;
+DROP POLICY IF EXISTS "Admin can insert products" ON products;
+DROP POLICY IF EXISTS "Admin can update products" ON products;
+DROP POLICY IF EXISTS "Admin can delete products" ON products;
 
 CREATE POLICY "Allow admin insert on products" ON products
     FOR INSERT WITH CHECK (
@@ -94,6 +105,9 @@ CREATE POLICY "Allow admin insert on products" ON products
 
 CREATE POLICY "Allow admin update on products" ON products
     FOR UPDATE USING (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    )
+    WITH CHECK (
         EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
     );
 
@@ -106,6 +120,9 @@ CREATE POLICY "Allow admin delete on products" ON products
 DROP POLICY IF EXISTS "Allow authenticated insert on categories" ON categories;
 DROP POLICY IF EXISTS "Allow authenticated update on categories" ON categories;
 DROP POLICY IF EXISTS "Allow authenticated delete on categories" ON categories;
+DROP POLICY IF EXISTS "Admin can insert categories" ON categories;
+DROP POLICY IF EXISTS "Admin can update categories" ON categories;
+DROP POLICY IF EXISTS "Admin can delete categories" ON categories;
 
 CREATE POLICY "Allow admin insert on categories" ON categories
     FOR INSERT WITH CHECK (
@@ -114,6 +131,9 @@ CREATE POLICY "Allow admin insert on categories" ON categories
 
 CREATE POLICY "Allow admin update on categories" ON categories
     FOR UPDATE USING (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    )
+    WITH CHECK (
         EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
     );
 
@@ -125,22 +145,48 @@ CREATE POLICY "Allow admin delete on categories" ON categories
 -- Update orders table policy
 DROP POLICY IF EXISTS "Allow authenticated update on orders" ON orders;
 DROP POLICY IF EXISTS "Allow authenticated delete on orders" ON orders;
+DROP POLICY IF EXISTS "Admin can manage orders" ON orders;
+DROP POLICY IF EXISTS "Allow admin update on orders" ON orders;
+DROP POLICY IF EXISTS "Allow admin delete on orders" ON orders;
 
-CREATE POLICY "Allow admin update on orders" ON orders
-    FOR UPDATE USING (
+CREATE POLICY "Admin can manage orders" ON orders
+    FOR ALL USING (
         EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
-    );
-
-CREATE POLICY "Allow admin delete on orders" ON orders
-    FOR DELETE USING (
+    )
+    WITH CHECK (
         EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
     );
 
 -- Update repair_requests table policy
 DROP POLICY IF EXISTS "Allow authenticated update on repair_requests" ON repair_requests;
+DROP POLICY IF EXISTS "Admin can manage repair_requests" ON repair_requests;
+DROP POLICY IF EXISTS "Allow admin update on repair_requests" ON repair_requests;
 
-CREATE POLICY "Allow admin update on repair_requests" ON repair_requests
-    FOR UPDATE USING (
+CREATE POLICY "Admin can manage repair_requests" ON repair_requests
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    );
+
+-- Ensure admin can fully manage customers and order_items too
+DROP POLICY IF EXISTS "Admin can manage customers" ON customers;
+DROP POLICY IF EXISTS "Admin can manage order_items" ON order_items;
+
+CREATE POLICY "Admin can manage customers" ON customers
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    );
+
+CREATE POLICY "Admin can manage order_items" ON order_items
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
+    )
+    WITH CHECK (
         EXISTS (SELECT 1 FROM public.admin_users WHERE id = auth.uid())
     );
 

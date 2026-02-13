@@ -69,6 +69,29 @@ const STORAGE_KEYS = {
   PC_BUILD: 'zulfiqar_pc_build_v2',
 };
 
+const isAbortLikeError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+
+  const maybeError = error as {
+    name?: string;
+    message?: string;
+    details?: string;
+    hint?: string;
+  };
+
+  const text = [
+    maybeError.name,
+    maybeError.message,
+    maybeError.details,
+    maybeError.hint,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return text.includes('aborterror') || text.includes('aborted');
+};
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CART);
@@ -116,18 +139,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!force && isCacheValid('products') && products.length > 0) {
       return; // Use cached data
     }
-    const data = await db.getProducts();
-    setProducts(data);
-    cacheTimestamps.current.products = Date.now();
+    try {
+      const data = await db.getProducts();
+      setProducts(data);
+      cacheTimestamps.current.products = Date.now();
+    } catch (error) {
+      if (isAbortLikeError(error)) return;
+      throw error;
+    }
   }, [products.length]);
 
   const refreshCategories = useCallback(async (force: boolean = false) => {
     if (!force && isCacheValid('categories') && categories.length > 0) {
       return; // Use cached data
     }
-    const data = await db.getCategories();
-    setCategories(data);
-    cacheTimestamps.current.categories = Date.now();
+    try {
+      const data = await db.getCategories();
+      setCategories(data);
+      cacheTimestamps.current.categories = Date.now();
+    } catch (error) {
+      if (isAbortLikeError(error)) return;
+      throw error;
+    }
   }, [categories.length]);
 
   const refreshOrders = useCallback(async (force: boolean = false) => {
@@ -170,6 +203,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Log any failures but don't crash
         results.forEach((result, i) => {
           if (result.status === 'rejected') {
+            if (isAbortLikeError(result.reason)) return;
             console.error(`Failed to load ${i === 0 ? 'products' : 'categories'}:`, result.reason);
           }
         });

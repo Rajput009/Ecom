@@ -3,8 +3,33 @@ import { db } from '../services/database';
 import type { PCComponent } from '../types';
 
 // Fetcher functions connected to Supabase
-const fetchProducts = () => db.getProducts();
-const fetchCategories = () => db.getCategories();
+const isAbortLikeError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const maybeError = error as { name?: string; message?: string; details?: string; hint?: string };
+  const text = [maybeError.name, maybeError.message, maybeError.details, maybeError.hint]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return text.includes('aborterror') || text.includes('aborted');
+};
+
+const fetchProducts = async () => {
+  try {
+    return await db.getProducts();
+  } catch (error) {
+    if (isAbortLikeError(error)) return [];
+    throw error;
+  }
+};
+
+const fetchCategories = async () => {
+  try {
+    return await db.getCategories();
+  } catch (error) {
+    if (isAbortLikeError(error)) return [];
+    throw error;
+  }
+};
 
 /**
  * Hook to fetch all products with SWR caching
