@@ -136,49 +136,49 @@ export function HomePage() {
       <section className="relative py-16 border-t border-[#27272a]">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-white mb-8 border-l-4 border-[#3b82f6] pl-4">Shop by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {/* CPU */}
-            <Link to="/products?category=CPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
-                <AnimatedIconMap.cpu size={80} isAnimated={true} />
+            <Link to="/products?category=CPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-3 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="aspect-square bg-[#18181b] rounded-lg flex items-center justify-center mb-2 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.cpu size={100} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1 text-center">CPU</h3>
+              <h3 className="text-sm font-medium text-white text-center">CPU</h3>
               <span className="text-[10px] text-[#71717a] font-mono block text-center">PROCESSORS</span>
             </Link>
             
             {/* Motherboard */}
-            <Link to="/products?category=Motherboard" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
-                <AnimatedIconMap.motherboard size={80} isAnimated={true} />
+            <Link to="/products?category=Motherboard" className="group bg-[#111113] border border-[#27272a] rounded-xl p-3 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="aspect-square bg-[#18181b] rounded-lg flex items-center justify-center mb-2 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.motherboard size={100} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1 text-center">Motherboard</h3>
+              <h3 className="text-sm font-medium text-white text-center">Motherboard</h3>
               <span className="text-[10px] text-[#71717a] font-mono block text-center">MOTHERBOARDS</span>
             </Link>
             
             {/* GPU */}
-            <Link to="/products?category=GPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
-                <AnimatedIconMap.gpu size={80} isAnimated={true} />
+            <Link to="/products?category=GPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-3 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="aspect-square bg-[#18181b] rounded-lg flex items-center justify-center mb-2 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.gpu size={100} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1 text-center">GPU</h3>
+              <h3 className="text-sm font-medium text-white text-center">GPU</h3>
               <span className="text-[10px] text-[#71717a] font-mono block text-center">GRAPHICS CARDS</span>
             </Link>
             
             {/* Memory */}
-            <Link to="/products?category=Memory" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
-                <AnimatedIconMap.ram size={80} isAnimated={true} />
+            <Link to="/products?category=Memory" className="group bg-[#111113] border border-[#27272a] rounded-xl p-3 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="aspect-square bg-[#18181b] rounded-lg flex items-center justify-center mb-2 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.ram size={100} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1 text-center">Memory</h3>
+              <h3 className="text-sm font-medium text-white text-center">Memory</h3>
               <span className="text-[10px] text-[#71717a] font-mono block text-center">RAM</span>
             </Link>
             
             {/* Storage */}
-            <Link to="/products?category=Storage" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
-                <AnimatedIconMap.storage size={80} isAnimated={true} />
+            <Link to="/products?category=Storage" className="group bg-[#111113] border border-[#27272a] rounded-xl p-3 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="aspect-square bg-[#18181b] rounded-lg flex items-center justify-center mb-2 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                <AnimatedIconMap.storage size={100} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1 text-center">Storage</h3>
+              <h3 className="text-sm font-medium text-white text-center">Storage</h3>
               <span className="text-[10px] text-[#71717a] font-mono block text-center">SSD / HDD</span>
             </Link>
           </div>
