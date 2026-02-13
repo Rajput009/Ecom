@@ -136,50 +136,50 @@ export function HomePage() {
       <section className="relative py-16 border-t border-[#27272a]">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-white mb-8 border-l-4 border-[#3b82f6] pl-4">Shop by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {/* CPU */}
-            <Link to="/products?category=CPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
-                <AnimatedIconMap.cpu size={48} isAnimated={false} />
+            <Link to="/products?category=CPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
+                <AnimatedIconMap.cpu size={80} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1">CPU</h3>
-              <span className="text-[10px] text-[#71717a] font-mono">PROCESSORS</span>
+              <h3 className="text-sm font-medium text-white mb-1 text-center">CPU</h3>
+              <span className="text-[10px] text-[#71717a] font-mono block text-center">PROCESSORS</span>
             </Link>
             
             {/* Motherboard */}
-            <Link to="/products?category=Motherboard" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
-                <AnimatedIconMap.motherboard size={48} isAnimated={false} />
+            <Link to="/products?category=Motherboard" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
+                <AnimatedIconMap.motherboard size={80} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1">Motherboard</h3>
-              <span className="text-[10px] text-[#71717a] font-mono">MOTHERBOARDS</span>
+              <h3 className="text-sm font-medium text-white mb-1 text-center">Motherboard</h3>
+              <span className="text-[10px] text-[#71717a] font-mono block text-center">MOTHERBOARDS</span>
             </Link>
             
             {/* GPU */}
-            <Link to="/products?category=GPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
-                <AnimatedIconMap.gpu size={48} isAnimated={false} />
+            <Link to="/products?category=GPU" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
+                <AnimatedIconMap.gpu size={80} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1">GPU</h3>
-              <span className="text-[10px] text-[#71717a] font-mono">GRAPHICS CARDS</span>
+              <h3 className="text-sm font-medium text-white mb-1 text-center">GPU</h3>
+              <span className="text-[10px] text-[#71717a] font-mono block text-center">GRAPHICS CARDS</span>
             </Link>
             
             {/* Memory */}
-            <Link to="/products?category=Memory" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
-                <AnimatedIconMap.ram size={48} isAnimated={false} />
+            <Link to="/products?category=Memory" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
+                <AnimatedIconMap.ram size={80} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1">Memory</h3>
-              <span className="text-[10px] text-[#71717a] font-mono">RAM</span>
+              <h3 className="text-sm font-medium text-white mb-1 text-center">Memory</h3>
+              <span className="text-[10px] text-[#71717a] font-mono block text-center">RAM</span>
             </Link>
             
             {/* Storage */}
-            <Link to="/products?category=Storage" className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-              <div className="w-12 h-12 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
-                <AnimatedIconMap.storage size={48} isAnimated={false} />
+            <Link to="/products?category=Storage" className="group bg-[#111113] border border-[#27272a] rounded-xl p-6 hover:border-[#3b82f6] transition-all duration-300">
+              <div className="w-20 h-20 bg-[#18181b] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden mx-auto">
+                <AnimatedIconMap.storage size={80} isAnimated={true} />
               </div>
-              <h3 className="text-sm font-medium text-white mb-1">Storage</h3>
-              <span className="text-[10px] text-[#71717a] font-mono">SSD / HDD</span>
+              <h3 className="text-sm font-medium text-white mb-1 text-center">Storage</h3>
+              <span className="text-[10px] text-[#71717a] font-mono block text-center">SSD / HDD</span>
             </Link>
           </div>
         </div>
