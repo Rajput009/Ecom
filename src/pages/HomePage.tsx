@@ -1,16 +1,31 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Cpu, Zap, HardDrive, Monitor, Fan, MemoryStick, ShoppingCart, Wrench, Shield, Truck, Headphones } from 'lucide-react';
+import { ArrowRight, Cpu, Zap, HardDrive, Monitor, Fan, MemoryStick, ShoppingCart, Shield, Truck, Headphones } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { Footer } from '../components/Footer';
 import { useApp } from '../context/AppContext';
 import { SEO } from '../components/SEO';
+import { AnimatedIconMap, AnimatedIconProps } from '../components/AnimatedIcons';
 
 const features = [
   { icon: Truck, title: 'Fast Shipping', desc: 'Free delivery over $500' },
   { icon: Shield, title: 'Genuine Parts', desc: 'Authorized distributor' },
   { icon: Headphones, title: 'Tech Support', desc: 'Expert assistance 24/7' },
 ] as const;
+
+// Map category names to animated icons
+const getAnimatedIcon = (categoryName: string): React.FC<AnimatedIconProps> | null => {
+  const name = categoryName.toLowerCase();
+  if (name.includes('processor') || name.includes('cpu')) return AnimatedIconMap.cpu;
+  if (name.includes('graphics') || name.includes('gpu')) return AnimatedIconMap.gpu;
+  if (name.includes('memory') || name.includes('ram')) return AnimatedIconMap.ram;
+  if (name.includes('storage') || name.includes('ssd') || name.includes('hdd')) return AnimatedIconMap.storage;
+  if (name.includes('motherboard')) return AnimatedIconMap.motherboard;
+  if (name.includes('power') || name.includes('psu')) return AnimatedIconMap.psu;
+  if (name.includes('cooling') || name.includes('cooler')) return AnimatedIconMap.cooler;
+  if (name.includes('case') || name.includes('chassis')) return AnimatedIconMap.case;
+  return null;
+};
 
 export function HomePage() {
   const { products, categories, isLoading } = useApp();
@@ -33,7 +48,8 @@ export function HomePage() {
       if (cat.name.includes('Storage')) icon = HardDrive;
       if (cat.name.includes('Cooling')) icon = Fan;
       if (cat.name.includes('Power')) icon = Zap;
-      return { ...cat, icon };
+      const animatedIcon = getAnimatedIcon(cat.name);
+      return { ...cat, icon, animatedIcon };
     });
   }, [categories]);
 
@@ -123,8 +139,12 @@ export function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {homeCategories.map((cat) => (
               <Link key={cat.id} to={`/products?category=${encodeURIComponent(cat.name)}`} className="group bg-[#111113] border border-[#27272a] rounded-xl p-4 hover:border-[#3b82f6] transition-all duration-300">
-                <div className="w-10 h-10 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors">
-                  <cat.icon className="w-5 h-5 text-[#3b82f6]" />
+                <div className="w-10 h-10 bg-[#18181b] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#3b82f6]/10 transition-colors overflow-hidden">
+                  {cat.animatedIcon ? (
+                    <cat.animatedIcon size={40} isAnimated={false} />
+                  ) : (
+                    <cat.icon className="w-5 h-5 text-[#3b82f6]" />
+                  )}
                 </div>
                 <h3 className="text-sm font-medium text-white mb-1">{cat.name}</h3>
                 <span className="text-[10px] text-[#71717a] font-mono">{cat.product_count} PRODUCTS_INDEXED</span>

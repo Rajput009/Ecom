@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   Cpu, Monitor, HardDrive, Zap, Box, Fan, CircuitBoard, MemoryStick,
-  Check, AlertTriangle, ShoppingCart, RotateCcw, ChevronDown,
-  Sparkles, Gauge, ThermometerSun, Wifi, Volume2
+  RotateCcw, ChevronDown, Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { usePCComponents } from '../hooks/useProducts';
@@ -10,6 +9,7 @@ import { PCComponent, PCBuild } from '../types';
 import { cn } from '../utils/cn';
 import { SEO } from '../components/SEO';
 import { Footer } from '../components/Footer';
+import { AnimatedCPU, AnimatedIconMap } from '../components/AnimatedIcons';
 
 const componentTypes = [
   { type: 'cpu', label: 'Processor (CPU)', icon: Cpu, required: true, color: 'blue' },
@@ -109,8 +109,8 @@ export function PCBuilderPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-4 mb-3">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border border-[#27272a]", rgbEnabled ? "animate-rgb-flow text-white border-white/20" : "bg-[#18181b] text-[#3b82f6]")}>
-                  <Cpu className="w-6 h-6" />
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border border-[#27272a] overflow-hidden", rgbEnabled ? "animate-rgb-flow border-white/20" : "bg-[#18181b]")}>
+                  <AnimatedCPU size={48} isAnimated={rgbEnabled} />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white">Custom PC Builder</h1>
@@ -133,16 +133,21 @@ export function PCBuilderPage() {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid lg:grid-cols-5 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            {componentTypes.map(({ type, label, icon: Icon, required, color }) => {
+            {componentTypes.map(({ type, label, icon: Icon, color }) => {
               const selected = pcBuild[type as keyof PCBuild];
               const isActive = activeType === type;
               const colors = (colorClasses as any)[color];
+              const AnimatedIcon = AnimatedIconMap[type];
               return (
                 <div key={type} className={cn("rounded-2xl border transition-all duration-300", selected ? "bg-[#111113] border-[#27272a]" : "bg-[#111113] border-[#27272a] opacity-80", isActive && "border-[#3b82f6] shadow-[0_0_20px_rgba(59,130,246,0.1)]")}>
                   <button onClick={() => setActiveType(isActive ? null : type)} className="w-full flex items-center justify-between p-5">
                     <div className="flex items-center gap-5">
-                      <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center transition-all border", selected ? cn(colors.bg, "border-white/20 shadow-lg") : "bg-[#18181b] border-[#27272a]")}>
-                        <Icon className={cn("w-7 h-7", selected ? "text-white" : "text-[#71717a]")} />
+                      <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center transition-all border overflow-hidden", selected ? cn(colors.bg, "border-white/20 shadow-lg") : "bg-[#18181b] border-[#27272a]")}>
+                        {AnimatedIcon ? (
+                          <AnimatedIcon size={selected ? 56 : 48} isAnimated={rgbEnabled && !!selected} />
+                        ) : (
+                          <Icon className={cn("w-7 h-7", selected ? "text-white" : "text-[#71717a]")} />
+                        )}
                       </div>
                       <div className="text-left">
                         <h3 className="text-[10px] font-mono font-bold text-[#71717a] uppercase tracking-widest mb-1">{label}</h3>
