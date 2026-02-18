@@ -150,13 +150,23 @@ class DatabaseService {
 
   async getCustomerByPhone(phone: string): Promise<Customer | null> {
     if (!supabase) return null;
-    // Normalize phone number
-    const normalizedPhone = phone.replace(/\D/g, '');
+    const normalizedPhone = phone.trim();
     const { data, error } = await supabase
       .from('customers')
       .select('*')
-      .ilike('phone', `%${normalizedPhone}%`)
-      .single();
+      .eq('phone', normalizedPhone)
+      .maybeSingle();
+    if (error) return null;
+    return data;
+  }
+
+  async getCustomerByUserId(userId: string): Promise<Customer | null> {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
     if (error) return null;
     return data;
   }
@@ -180,6 +190,68 @@ class DatabaseService {
     const fullUpdates = { ...updates, updated_at: new Date().toISOString() };
     const { error } = await supabase.from('customers').update(fullUpdates).eq('id', customerId);
     if (error) throw error;
+  }
+
+  private async getAuthenticatedUserId(): Promise<string | null> {
+    if (!supabase) return null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return user?.id || null;
+  }
+
+  async findOrCreateCurrentCustomer(
+    customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Customer> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const userId = await this.getAuthenticatedUserId();
+    if (!userId) {
+      throw new Error('Authentication required');
+    }
+
+    const existingByUser = await this.getCustomerByUserId(userId);
+    if (existingByUser) {
+      const needsUpdate =
+        existingByUser.name !== customerData.name ||
+        (existingByUser.email || '') !== (customerData.email || '') ||
+        existingByUser.phone !== customerData.phone ||
+        (existingByUser.address || '') !== (customerData.address || '');
+
+      if (needsUpdate) {
+        await this.updateCustomer(existingByUser.id, {
+          name: customerData.name,
+          email: customerData.email,
+          phone: customerData.phone,
+          address: customerData.address,
+        });
+        return {
+          ...existingByUser,
+          ...customerData,
+        };
+      }
+      return existingByUser;
+    }
+
+    const customerByPhone = await this.getCustomerByPhone(customerData.phone);
+    if (customerByPhone) {
+      await this.updateCustomer(customerByPhone.id, {
+        name: customerData.name,
+        email: customerData.email,
+        address: customerData.address,
+        user_id: userId,
+      });
+      return {
+        ...customerByPhone,
+        ...customerData,
+        user_id: userId,
+      };
+    }
+
+    return this.addCustomer({
+      ...customerData,
+      user_id: userId,
+    });
   }
 
   // ============================================================================
@@ -299,46 +371,38 @@ class DatabaseService {
     tax: number = 0
   ): Promise<OrderComplete> {
     if (!supabase) throw new Error('Supabase not configured');
-    // 1. Create or find customer
-    let customer = await this.getCustomerByPhone(customerData.phone);
-    if (!customer) {
-      customer = await this.addCustomer(customerData);
+    if (!cartItems.length) {
+      throw new Error('Cart is empty');
     }
 
-    // 2. Calculate totals
-    const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-    const total = subtotal + shippingCost + tax;
+    const customer = await this.findOrCreateCurrentCustomer(customerData);
+    const rpcItems = cartItems.map((item) => ({
+      product_id: item.product.id,
+      quantity: item.quantity,
+    }));
 
-    // 3. Create order
-    const order = await this.addOrder({
-      customer_id: customer.id,
-      total,
-      shipping_cost: shippingCost,
-      tax,
-      status: 'pending',
-      payment_status: 'pending',
+    const { data, error } = await supabase.rpc('create_complete_order', {
+      p_customer_id: customer.id,
+      p_shipping_cost: shippingCost,
+      p_tax: tax,
+      p_items: rpcItems,
     });
-
-    // 4. Create order items
-    const orderItems: OrderItem[] = [];
-    for (const cartItem of cartItems) {
-      const orderItem = await this.addOrderItem({
-        order_id: order.id,
-        product_id: cartItem.product.id,
-        quantity: cartItem.quantity,
-        price: cartItem.product.price,
-        name: cartItem.product.name,
-      });
-      orderItems.push(orderItem);
-
-      // 5. Update product stock
-      await this.updateProduct(cartItem.product.id, {
-        stock: Math.max(0, cartItem.product.stock - cartItem.quantity)
-      });
+    if (error || !data || !Array.isArray(data) || !data[0]?.order_id) {
+      throw error || new Error('Failed to create order');
     }
+    const { data: orderRow, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', data[0].order_id)
+      .single();
+    if (orderError || !orderRow) {
+      throw orderError || new Error('Order was created but could not be loaded');
+    }
+
+    const orderItems = await this.getOrderItems(orderRow.id);
 
     return {
-      ...order,
+      ...orderRow,
       customer_name: customer.name,
       customer_email: customer.email,
       customer_phone: customer.phone,

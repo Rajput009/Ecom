@@ -110,16 +110,12 @@ export function RepairPage() {
       }
 
       const normalizedPhone = formData.phone.trim();
-      let customer = await db.getCustomerByPhone(normalizedPhone);
-
-      if (!customer) {
-        customer = await db.addCustomer({
-          name: formData.name.trim(),
-          email: user.email || undefined,
-          phone: normalizedPhone,
-          address: '',
-        });
-      }
+      const customer = await db.findOrCreateCurrentCustomer({
+        name: formData.name.trim(),
+        email: user.email || undefined,
+        phone: normalizedPhone,
+        address: '',
+      });
 
       const repair = await addRepairRequest({
         customer_id: customer.id,

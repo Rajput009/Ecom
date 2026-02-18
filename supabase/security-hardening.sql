@@ -77,7 +77,15 @@ GRANT EXECUTE ON FUNCTION public.get_order_status(TEXT, TEXT) TO anon, authentic
 GRANT EXECUTE ON FUNCTION public.get_repair_status(TEXT, TEXT) TO anon, authenticated;
 
 -- 3. TIGHTEN RLS POLICIES
--- Remove public read access from sensitive tables and keep inserts public.
+-- Remove public access from sensitive tables and enforce user ownership.
+ALTER TABLE public.customers
+ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_customers_user_id ON public.customers(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_user_id_unique
+ON public.customers(user_id)
+WHERE user_id IS NOT NULL;
+
 DROP POLICY IF EXISTS "Allow public read access to customers" ON public.customers;
 DROP POLICY IF EXISTS "Allow public read access to orders" ON public.orders;
 DROP POLICY IF EXISTS "Allow public read access to order_items" ON public.order_items;
@@ -95,11 +103,89 @@ DROP POLICY IF EXISTS "Allow public insert on customers" ON public.customers;
 DROP POLICY IF EXISTS "Allow public insert on orders" ON public.orders;
 DROP POLICY IF EXISTS "Allow public insert on order_items" ON public.order_items;
 DROP POLICY IF EXISTS "Allow public insert on repair_requests" ON public.repair_requests;
+DROP POLICY IF EXISTS "Authenticated users can insert customers" ON public.customers;
+DROP POLICY IF EXISTS "Users can view own customer record" ON public.customers;
+DROP POLICY IF EXISTS "Authenticated users can insert orders" ON public.orders;
+DROP POLICY IF EXISTS "Users can view own orders" ON public.orders;
+DROP POLICY IF EXISTS "Authenticated users can insert order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Users can view own order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Authenticated users can insert repair_requests" ON public.repair_requests;
+DROP POLICY IF EXISTS "Users can view own repair_requests" ON public.repair_requests;
 
-CREATE POLICY "Public can insert customers" ON public.customers FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public can insert orders" ON public.orders FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public can insert order_items" ON public.order_items FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public can insert repair_requests" ON public.repair_requests FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert customers" ON public.customers
+    FOR INSERT
+    WITH CHECK (
+        auth.uid() IS NOT NULL
+        AND (user_id IS NULL OR user_id = auth.uid())
+    );
+
+CREATE POLICY "Users can view own customer record" ON public.customers
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Authenticated users can insert orders" ON public.orders
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can view own orders" ON public.orders
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Authenticated users can insert order_items" ON public.order_items
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.orders o
+            JOIN public.customers c ON c.id = o.customer_id
+            WHERE o.id = order_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can view own order_items" ON public.order_items
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.orders o
+            JOIN public.customers c ON o.customer_id = c.id
+            WHERE o.id = order_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Authenticated users can insert repair_requests" ON public.repair_requests
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can view own repair_requests" ON public.repair_requests
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
 
 DROP POLICY IF EXISTS "Admins can manage everything" ON public.customers;
 DROP POLICY IF EXISTS "Admins can manage everything" ON public.orders;

@@ -2,11 +2,12 @@
 # Copy these values into Vercel Dashboard → Settings → Environment Variables
 
 # Supabase Configuration
-VITE_SUPABASE_URL=https://yanpbthptucrpwdpguos.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_bc5VzTD0vS4fmUhG1dn0aA_kiyIkYB_
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Admin Password (SHA-256 hash)
 # Default: admin123
 # To change: Generate SHA-256 hash of your password at https://www.sha256.org/
 # Example: VITE_ADMIN_PASSWORD_HASH=a8f5f167f44f4964e6c998dee827110c9a0c5e1e7a5b6e5e9c9e8f7d6c5b4a32
-VITE_ADMIN_PASSWORD_HASH=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+# Deprecated (no longer used after Supabase Auth migration)
+# VITE_ADMIN_PASSWORD_HASH=

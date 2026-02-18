@@ -20,6 +20,32 @@ CREATE TABLE IF NOT EXISTS public.admin_users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+ALTER TABLE public.customers
+ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_customers_user_id ON public.customers(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_user_id_unique
+ON public.customers(user_id)
+WHERE user_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.link_customer_to_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.user_id IS NULL AND auth.uid() IS NOT NULL THEN
+        NEW.user_id := auth.uid();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public;
+
+DROP TRIGGER IF EXISTS trg_link_customer_to_user ON public.customers;
+CREATE TRIGGER trg_link_customer_to_user
+    BEFORE INSERT ON public.customers
+    FOR EACH ROW
+    EXECUTE FUNCTION public.link_customer_to_user();
+
 -- --------------------------------------------------------------------------
 -- Ensure RLS is enabled
 -- --------------------------------------------------------------------------
@@ -65,6 +91,8 @@ DROP POLICY IF EXISTS "Public can insert customers" ON public.customers;
 DROP POLICY IF EXISTS "Allow authenticated update on customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can manage everything" ON public.customers;
 DROP POLICY IF EXISTS "Admin can manage customers" ON public.customers;
+DROP POLICY IF EXISTS "Authenticated users can insert customers" ON public.customers;
+DROP POLICY IF EXISTS "Users can view own customer record" ON public.customers;
 
 DROP POLICY IF EXISTS "Allow public read access to orders" ON public.orders;
 DROP POLICY IF EXISTS "Allow public insert on orders" ON public.orders;
@@ -76,6 +104,8 @@ DROP POLICY IF EXISTS "Allow admin update on orders" ON public.orders;
 DROP POLICY IF EXISTS "Allow admin delete on orders" ON public.orders;
 DROP POLICY IF EXISTS "Admins can manage everything" ON public.orders;
 DROP POLICY IF EXISTS "Admin can manage orders" ON public.orders;
+DROP POLICY IF EXISTS "Authenticated users can insert orders" ON public.orders;
+DROP POLICY IF EXISTS "Users can view own orders" ON public.orders;
 
 DROP POLICY IF EXISTS "Allow public read access to order_items" ON public.order_items;
 DROP POLICY IF EXISTS "Allow public insert on order_items" ON public.order_items;
@@ -84,6 +114,8 @@ DROP POLICY IF EXISTS "Public can insert order_items" ON public.order_items;
 DROP POLICY IF EXISTS "Allow authenticated update on order_items" ON public.order_items;
 DROP POLICY IF EXISTS "Admins can manage everything" ON public.order_items;
 DROP POLICY IF EXISTS "Admin can manage order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Authenticated users can insert order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Users can view own order_items" ON public.order_items;
 
 DROP POLICY IF EXISTS "Allow public read access to repair_requests" ON public.repair_requests;
 DROP POLICY IF EXISTS "Allow public insert on repair_requests" ON public.repair_requests;
@@ -93,6 +125,8 @@ DROP POLICY IF EXISTS "Allow authenticated update on repair_requests" ON public.
 DROP POLICY IF EXISTS "Allow admin update on repair_requests" ON public.repair_requests;
 DROP POLICY IF EXISTS "Admins can manage everything" ON public.repair_requests;
 DROP POLICY IF EXISTS "Admin can manage repair_requests" ON public.repair_requests;
+DROP POLICY IF EXISTS "Authenticated users can insert repair_requests" ON public.repair_requests;
+DROP POLICY IF EXISTS "Users can view own repair_requests" ON public.repair_requests;
 
 DROP POLICY IF EXISTS "Admin users can view admin list" ON public.admin_users;
 DROP POLICY IF EXISTS "Super admin can manage admins" ON public.admin_users;
@@ -127,30 +161,93 @@ CREATE POLICY "Admin can update products" ON public.products
 CREATE POLICY "Admin can delete products" ON public.products
     FOR DELETE USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
--- Checkout/service intake: public insert, admin full manage
-CREATE POLICY "Public can insert customers" ON public.customers
-    FOR INSERT WITH CHECK (true);
+-- Customer-owned access model
+CREATE POLICY "Authenticated users can insert customers" ON public.customers
+    FOR INSERT
+    WITH CHECK (
+        auth.uid() IS NOT NULL
+        AND (user_id IS NULL OR user_id = auth.uid())
+    );
+
+CREATE POLICY "Users can view own customer record" ON public.customers
+    FOR SELECT USING (user_id = auth.uid());
 
 CREATE POLICY "Admin can manage customers" ON public.customers
     FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
     WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Public can insert orders" ON public.orders
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert orders" ON public.orders
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can view own orders" ON public.orders
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
 
 CREATE POLICY "Admin can manage orders" ON public.orders
     FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
     WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Public can insert order_items" ON public.order_items
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert order_items" ON public.order_items
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.orders o
+            JOIN public.customers c ON c.id = o.customer_id
+            WHERE o.id = order_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can view own order_items" ON public.order_items
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.orders o
+            JOIN public.customers c ON o.customer_id = c.id
+            WHERE o.id = order_id
+              AND c.user_id = auth.uid()
+        )
+    );
 
 CREATE POLICY "Admin can manage order_items" ON public.order_items
     FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
     WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()));
 
-CREATE POLICY "Public can insert repair_requests" ON public.repair_requests
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert repair_requests" ON public.repair_requests
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can view own repair_requests" ON public.repair_requests
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.customers c
+            WHERE c.id = customer_id
+              AND c.user_id = auth.uid()
+        )
+    );
 
 CREATE POLICY "Admin can manage repair_requests" ON public.repair_requests
     FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users au WHERE au.id = auth.uid()))
@@ -179,6 +276,115 @@ CREATE POLICY "Super admin can manage admins" ON public.admin_users
 -- --------------------------------------------------------------------------
 -- Secure tracking RPCs
 -- --------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.create_complete_order(
+    p_customer_id UUID,
+    p_shipping_cost DECIMAL(10, 2) DEFAULT 0,
+    p_tax DECIMAL(10, 2) DEFAULT 0,
+    p_items JSONB DEFAULT '[]'::jsonb
+)
+RETURNS TABLE (
+    order_id UUID,
+    order_number VARCHAR,
+    total DECIMAL,
+    created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_auth_user_id UUID := auth.uid();
+    v_is_admin BOOLEAN := FALSE;
+    v_item JSONB;
+    v_product RECORD;
+    v_order RECORD;
+    v_quantity INTEGER;
+    v_subtotal NUMERIC := 0;
+BEGIN
+    IF v_auth_user_id IS NULL THEN
+        RAISE EXCEPTION 'Authentication required';
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.admin_users au
+        WHERE au.id = v_auth_user_id
+    ) INTO v_is_admin;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.customers c
+        WHERE c.id = p_customer_id
+          AND (c.user_id = v_auth_user_id OR v_is_admin)
+    ) THEN
+        RAISE EXCEPTION 'Customer access denied';
+    END IF;
+
+    IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'Order items are required';
+    END IF;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+        v_quantity := COALESCE((v_item->>'quantity')::INTEGER, 0);
+        IF v_quantity <= 0 THEN
+            RAISE EXCEPTION 'Invalid item quantity';
+        END IF;
+
+        SELECT p.id, p.name, p.price, p.stock
+        INTO v_product
+        FROM public.products p
+        WHERE p.id = (v_item->>'product_id')::UUID
+        FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Product not found';
+        END IF;
+
+        IF v_product.stock < v_quantity THEN
+            RAISE EXCEPTION 'Insufficient stock for product %', v_product.id;
+        END IF;
+
+        v_subtotal := v_subtotal + (v_product.price * v_quantity);
+    END LOOP;
+
+    INSERT INTO public.orders (customer_id, total, shipping_cost, tax, status, payment_status)
+    VALUES (
+        p_customer_id,
+        v_subtotal + COALESCE(p_shipping_cost, 0) + COALESCE(p_tax, 0),
+        COALESCE(p_shipping_cost, 0),
+        COALESCE(p_tax, 0),
+        'pending',
+        'pending'
+    )
+    RETURNING id, order_number, total, created_at
+    INTO v_order;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+        v_quantity := COALESCE((v_item->>'quantity')::INTEGER, 0);
+
+        SELECT p.id, p.name, p.price, p.stock
+        INTO v_product
+        FROM public.products p
+        WHERE p.id = (v_item->>'product_id')::UUID
+        FOR UPDATE;
+
+        IF v_product.stock < v_quantity THEN
+            RAISE EXCEPTION 'Insufficient stock for product %', v_product.id;
+        END IF;
+
+        UPDATE public.products
+        SET stock = stock - v_quantity
+        WHERE id = v_product.id;
+
+        INSERT INTO public.order_items (order_id, product_id, quantity, price, name)
+        VALUES (v_order.id, v_product.id, v_quantity, v_product.price, v_product.name);
+    END LOOP;
+
+    RETURN QUERY
+    SELECT v_order.id, v_order.order_number, v_order.total, v_order.created_at;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.get_order_status(p_order_number TEXT, p_phone TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -246,8 +452,9 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_order_status(TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_repair_status(TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_complete_order(UUID, DECIMAL, DECIMAL, JSONB) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_order_status(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_repair_status(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_complete_order(UUID, DECIMAL, DECIMAL, JSONB) TO authenticated;
 
 COMMIT;
-
