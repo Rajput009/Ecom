@@ -53,8 +53,8 @@ export function CartPage() {
       setOrderNumber(order.order_number);
       clearCart();
       setOrderPlaced(true);
-    } catch {
-      setSubmitError('Unable to place order. Please check your details and try again.');
+    } catch (error) {
+      setSubmitError(db.getCheckoutErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

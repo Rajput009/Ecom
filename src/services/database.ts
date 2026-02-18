@@ -6,6 +6,13 @@ import {
 } from '../types';
 import { whatsappService } from './whatsapp';
 
+type SupabaseLikeError = {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
+
 // Supabase configuration
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
 const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
@@ -29,6 +36,38 @@ class DatabaseService {
     } else {
       console.log('Supabase connected successfully');
     }
+  }
+
+  getCheckoutErrorMessage(error: unknown): string {
+    const fallback = 'Unable to place order. Please try again.';
+    if (!error || typeof error !== 'object') return fallback;
+
+    const e = error as SupabaseLikeError;
+    const text = [e.message, e.details, e.hint].filter(Boolean).join(' ').toLowerCase();
+
+    if (text.includes('authentication required') || text.includes('jwt')) {
+      return 'Your session expired. Please sign in again and retry.';
+    }
+    if (text.includes('customer access denied') || text.includes('permission denied') || e.code === '42501') {
+      return 'Account access check failed. Please sign out and sign in again.';
+    }
+    if (text.includes('insufficient stock')) {
+      return 'Some items are out of stock. Please update your cart and try again.';
+    }
+    if (text.includes('order items are required') || text.includes('cart is empty')) {
+      return 'Your cart is empty. Add products before checkout.';
+    }
+    if (text.includes('create_complete_order') || text.includes('function')) {
+      return 'Database setup is incomplete. Run the latest Supabase SQL migrations.';
+    }
+    if (text.includes('duplicate key') || e.code === '23505') {
+      return 'We could not save your customer profile. Please try again.';
+    }
+    if (typeof e.message === 'string' && e.message.trim()) {
+      return e.message;
+    }
+
+    return fallback;
   }
 
   // ============================================================================
@@ -374,40 +413,44 @@ class DatabaseService {
     if (!cartItems.length) {
       throw new Error('Cart is empty');
     }
+    try {
+      const customer = await this.findOrCreateCurrentCustomer(customerData);
+      const rpcItems = cartItems.map((item) => ({
+        product_id: item.product.id,
+        quantity: item.quantity,
+      }));
 
-    const customer = await this.findOrCreateCurrentCustomer(customerData);
-    const rpcItems = cartItems.map((item) => ({
-      product_id: item.product.id,
-      quantity: item.quantity,
-    }));
+      const { data, error } = await supabase.rpc('create_complete_order', {
+        p_customer_id: customer.id,
+        p_shipping_cost: shippingCost,
+        p_tax: tax,
+        p_items: rpcItems,
+      });
+      if (error || !data || !Array.isArray(data) || !data[0]?.order_id) {
+        throw error || new Error('Failed to create order');
+      }
+      const { data: orderRow, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', data[0].order_id)
+        .single();
+      if (orderError || !orderRow) {
+        throw orderError || new Error('Order was created but could not be loaded');
+      }
 
-    const { data, error } = await supabase.rpc('create_complete_order', {
-      p_customer_id: customer.id,
-      p_shipping_cost: shippingCost,
-      p_tax: tax,
-      p_items: rpcItems,
-    });
-    if (error || !data || !Array.isArray(data) || !data[0]?.order_id) {
-      throw error || new Error('Failed to create order');
+      const orderItems = await this.getOrderItems(orderRow.id);
+
+      return {
+        ...orderRow,
+        customer_name: customer.name,
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        items: orderItems,
+      };
+    } catch (error) {
+      console.error('createCompleteOrder failed:', error);
+      throw error;
     }
-    const { data: orderRow, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', data[0].order_id)
-      .single();
-    if (orderError || !orderRow) {
-      throw orderError || new Error('Order was created but could not be loaded');
-    }
-
-    const orderItems = await this.getOrderItems(orderRow.id);
-
-    return {
-      ...orderRow,
-      customer_name: customer.name,
-      customer_email: customer.email,
-      customer_phone: customer.phone,
-      items: orderItems,
-    };
   }
 
   // ============================================================================
